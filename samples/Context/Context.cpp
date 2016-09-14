@@ -1,3 +1,13 @@
+/**
+ * Vulkan samples
+ * 
+ * Context
+ * Creates vulkan instance and displays all found physical devices
+ * Only devices supporting Vulkan will be displayed
+ *
+ * The MIT License (MIT)
+ * Copyright (c) 2016 Alexey Gruzdev
+ */
 
 #include <iostream>
 
