@@ -1,0 +1,38 @@
+cmake_minimum_required (VERSION 3.0)
+
+macro(add_snippet Name Directory Default)
+option(ENABLE_${Name} "Enable snippet ${Name}" ${Default})
+if(ENABLE_${Name})
+    set(sample_build_root "${CMAKE_BINARY_DIR}/${Name}")
+    set(CONF_NAME ${Name})
+    set(CONF_DIRECTORY ${Directory})
+    configure_file("CMakeLists.txt.in" "${sample_build_root}/CMakeLists.txt" @ONLY)
+    add_subdirectory(${sample_build_root} "${sample_build_root}/build")
+    unset(CONF_DIRECTORY)
+    unset(CONF_NAME)
+    unset(sample_build_root)
+endif()
+unset(ENABLE_${Name})
+endmacro()
+
+project(VulkanSamples)
+
+if(NOT MSVC OR MSVC_VERSION LESS 1900)
+    message(FATAL_ERROR "Only MSVC 2015 target is supported!")
+endif()
+
+set(VULKAN_INCLUDE $ENV{VULKAN_SDK}/Include CACHE PATH "Vulkan include directory")
+if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+    set(VULKAN_LIBRARY $ENV{VULKAN_SDK}/Bin/vulkan-1.lib CACHE PATH "Vulkan library")
+else()
+    set(VULKAN_LIBRARY $ENV{VULKAN_SDK}/Bin32/vulkan-1.lib CACHE PATH "Vulkan library")
+endif()
+
+if(NOT EXISTS ${VULKAN_INCLUDE}/vulkan/vulkan.hpp)
+    message(FATAL_ERROR "Vulkan inlcudes is not found!")
+endif()
+if(NOT EXISTS ${VULKAN_LIBRARY})
+    message(FATAL_ERROR "Vulkan library is not found!")
+endif()
+
+add_snippet(Context ${CMAKE_SOURCE_DIR}/samples/Context ON)
