@@ -34,66 +34,34 @@ class Sample_03_Window
 
 public:
     
-    bool CheckPhysicalDeviceProperties(VkPhysicalDevice physical_device, uint32_t &selected_graphics_queue_family_index, uint32_t &selected_present_queue_family_index)
+    bool CheckPhysicalDeviceProperties(const vk::PhysicalDevice & physicalDevice, uint32_t &selected_graphics_queue_family_index, uint32_t &selected_present_queue_family_index)
     {
-        uint32_t extensions_count = 0;
-        if ((vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extensions_count, nullptr) != VK_SUCCESS) ||
-            (extensions_count == 0)) {
-            std::cout << "Error occurred during physical device " << physical_device << " extensions enumeration!" << std::endl;
+        auto deviceProperties = physicalDevice.getProperties();
+        auto deviceFeatures = physicalDevice.getFeatures();
+
+        if ((VK_VERSION_MAJOR(deviceProperties.apiVersion) < 1) || (deviceProperties.limits.maxImageDimension2D < 4096)) {
+            std::cout << "Physical device " << physicalDevice << " doesn't support required parameters!" << std::endl;
             return false;
         }
 
-        std::vector<VkExtensionProperties> available_extensions(extensions_count);
-        if (vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extensions_count, &available_extensions[0]) != VK_SUCCESS) {
-            std::cout << "Error occurred during physical device " << physical_device << " extensions enumeration!" << std::endl;
-            return false;
-        }
-        
-        std::vector<const char*> device_extensions = {
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME
-        };
-
-        VkPhysicalDeviceProperties device_properties;
-        VkPhysicalDeviceFeatures   device_features;
-
-        vkGetPhysicalDeviceProperties(physical_device, &device_properties);
-        vkGetPhysicalDeviceFeatures(physical_device, &device_features);
-
-        uint32_t major_version = VK_VERSION_MAJOR(device_properties.apiVersion);
-
-        if ((major_version < 1) ||
-            (device_properties.limits.maxImageDimension2D < 4096)) {
-            std::cout << "Physical device " << physical_device << " doesn't support required parameters!" << std::endl;
-            return false;
-        }
-
-        uint32_t queue_families_count = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_families_count, nullptr);
-        if (queue_families_count == 0) {
-            std::cout << "Physical device " << physical_device << " doesn't have any queue families!" << std::endl;
-            return false;
-        }
-
-        std::vector<VkQueueFamilyProperties>  queue_family_properties(queue_families_count);
-        std::vector<VkBool32>                 queue_present_support(queue_families_count);
-
-        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_families_count, &queue_family_properties[0]);
+        auto queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
+        std::vector<vk::Bool32> queuePresentSupport(queueFamilyProperties.size());
 
         uint32_t graphics_queue_family_index = UINT32_MAX;
         uint32_t present_queue_family_index = UINT32_MAX;
 
-        for (uint32_t i = 0; i < queue_families_count; ++i) {
-            vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, *mSurface, &queue_present_support[i]);
+        for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i) {
+            queuePresentSupport[i] = physicalDevice.getSurfaceSupportKHR(i, mSurface);
 
-            if ((queue_family_properties[i].queueCount > 0) &&
-                (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+            if ((queueFamilyProperties[i].queueCount > 0) &&
+                (queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics)) {
                 // Select first queue that supports graphics
                 if (graphics_queue_family_index == UINT32_MAX) {
                     graphics_queue_family_index = i;
                 }
 
                 // If there is queue that supports both graphics and present - prefer it
-                if (queue_present_support[i]) {
+                if (queuePresentSupport[i]) {
                     selected_graphics_queue_family_index = i;
                     selected_present_queue_family_index = i;
                     return true;
@@ -102,17 +70,16 @@ public:
         }
 
         // We don't have queue that supports both graphics and present so we have to use separate queues
-        for (uint32_t i = 0; i < queue_families_count; ++i) {
-            if (queue_present_support[i]) {
+        for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i) {
+            if (queuePresentSupport[i]) {
                 present_queue_family_index = i;
                 break;
             }
         }
 
         // If this device doesn't support queues with graphics and present capabilities don't use it
-        if ((graphics_queue_family_index == UINT32_MAX) ||
-            (present_queue_family_index == UINT32_MAX)) {
-            std::cout << "Could not find queue family with required properties on physical device " << physical_device << "!" << std::endl;
+        if ((graphics_queue_family_index == UINT32_MAX) || (present_queue_family_index == UINT32_MAX)) {
+            std::cout << "Could not find queue family with required properties on physical device " << physicalDevice << "!" << std::endl;
             return false;
         }
 
@@ -396,7 +363,7 @@ int main() {
     try {
         ApiWithoutSecrets::OS::Window window;
         // Window creation
-        if (!window.Create("02 - Swap chain", 512, 512)) {
+        if (!window.Create("03 - Window", 512, 512)) {
             return -1;
         }
 
