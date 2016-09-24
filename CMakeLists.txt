@@ -35,4 +35,10 @@ if(NOT EXISTS ${VULKAN_LIBRARY})
     message(FATAL_ERROR "Vulkan library is not found!")
 endif()
 
-add_snippet(Context ${CMAKE_SOURCE_DIR}/samples/Context ON)
+set(COMMON_DIR ${CMAKE_SOURCE_DIR}/samples/Common)
+list(APPEND COMMON_INCLUDES ${COMMON_DIR})
+                                                      
+add_snippet(01_Context        ${CMAKE_SOURCE_DIR}/samples/01_Context        ON)
+add_snippet(02_CommandBuffers ${CMAKE_SOURCE_DIR}/samples/02_CommandBuffers ON)
+add_snippet(03_Window         ${CMAKE_SOURCE_DIR}/samples/03_Window         ON)
+

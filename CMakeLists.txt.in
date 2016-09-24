@@ -6,9 +6,13 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_SCL_SECURE_NO_WARNINGS")
 
-file(GLOB source @CONF_DIRECTORY@/*.cpp @CONF_DIRECTORY@/.h)
+file(GLOB source @CONF_DIRECTORY@/*.cpp @CONF_DIRECTORY@/.h @COMMON_DIR@/*.cpp @COMMON_DIR@/*.h)
 
 include_directories(@VULKAN_INCLUDE@)
+include_directories(@COMMON_INCLUDES@)
+
+add_definitions("/DVK_PROTOTYPES")
+add_definitions("/DVK_USE_PLATFORM_WIN32_KHR")
 
 add_executable(@CONF_NAME@ ${source})
 
