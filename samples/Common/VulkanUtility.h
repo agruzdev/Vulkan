@@ -12,14 +12,18 @@
 
 #include <cstdint>
 #include <initializer_list>
-#include <string>
-#include <memory>
+#include <fstream>
 #include <functional>
+#include <memory>
+#include <string>
 #include <type_traits>
 #include <utility>
 
 #define NOMINMAX
 #include <vulkan\vulkan.hpp>
+
+#define Q_IMPL(X) #X
+#define QUOTE(X) Q_IMPL(X)
 
 namespace details
 {
@@ -56,11 +60,17 @@ public:
         mInstance(std::move(instance)), mDeleter(std::move(deleter))
     { }
 
-    ~VulkanHolder()
+    void destory()
     {
         if (!mDetached) {
             mDeleter(mInstance);
+            mDetached = true;
         }
+    }
+
+    ~VulkanHolder()
+    {
+        destory();
     }
 
     VulkanHolder(const VulkanHolder&) = delete;
@@ -212,6 +222,29 @@ boolean CheckFormat(const std::vector<vk::SurfaceFormatKHR> & formats, const std
         }
         return false;
     }));
+}
+
+// from https://github.com/GameTechDev/IntroductionToVulkan/blob/master/Project/Common/Tools.cpp
+inline
+std::vector<char> GetBinaryFileContents(const std::string & filename)
+{
+    std::ifstream file(filename, std::ios::binary);
+    if (file.fail()) {
+        std::cout << "Could not open \"" << filename << "\" file!" << std::endl;
+        return std::vector<char>();
+    }
+
+    std::streampos begin, end;
+    begin = file.tellg();
+    file.seekg(0, std::ios::end);
+    end = file.tellg();
+
+    std::vector<char> result(static_cast<size_t>(end - begin));
+    file.seekg(0, std::ios::beg);
+    file.read(&result[0], end - begin);
+    file.close();
+
+    return result;
 }
 
 

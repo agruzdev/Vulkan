@@ -35,6 +35,8 @@ if(NOT EXISTS ${VULKAN_LIBRARY})
     message(FATAL_ERROR "Vulkan library is not found!")
 endif()
 
+set(SHADERS_DIR "${CMAKE_SOURCE_DIR}/shaders")
+
 set(COMMON_DIR ${CMAKE_SOURCE_DIR}/samples/Common)
 list(APPEND COMMON_INCLUDES ${COMMON_DIR})
                                                       
@@ -42,4 +44,5 @@ add_snippet(01_Context         ${CMAKE_SOURCE_DIR}/samples/01_Context         ON
 add_snippet(02_CommandBuffers  ${CMAKE_SOURCE_DIR}/samples/02_CommandBuffers  ON)
 add_snippet(03_Window          ${CMAKE_SOURCE_DIR}/samples/03_Window          ON)
 add_snippet(04_DynamicCommands ${CMAKE_SOURCE_DIR}/samples/04_DynamicCommands ON)
+add_snippet(05_SimpleTriangle  ${CMAKE_SOURCE_DIR}/samples/05_SimpleTriangle  ON)
 
