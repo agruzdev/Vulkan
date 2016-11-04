@@ -292,14 +292,14 @@ public:
                 cmdBuffer.clearColorImage(swapchainImages[idx], vk::ImageLayout::eTransferDstOptimal, &targetColor, 1, &range);
 
                 vk::ImageMemoryBarrier barrierFromClearToPresent;
-                barrierFromPresentToClear.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-                barrierFromPresentToClear.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
-                barrierFromPresentToClear.oldLayout = vk::ImageLayout::eTransferDstOptimal;
-                barrierFromPresentToClear.newLayout = vk::ImageLayout::eUndefined;
-                barrierFromPresentToClear.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrierFromPresentToClear.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrierFromPresentToClear.image = swapchainImages[idx];
-                barrierFromPresentToClear.subresourceRange = range;
+                barrierFromClearToPresent.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+                barrierFromClearToPresent.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
+                barrierFromClearToPresent.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+                barrierFromClearToPresent.newLayout = vk::ImageLayout::eUndefined;
+                barrierFromClearToPresent.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barrierFromClearToPresent.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barrierFromClearToPresent.image = swapchainImages[idx];
+                barrierFromClearToPresent.subresourceRange = range;
                 cmdBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromClearToPresent);
 
                 cmdBuffer.end();
