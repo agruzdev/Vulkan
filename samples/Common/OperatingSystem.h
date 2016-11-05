@@ -57,6 +57,7 @@ namespace ApiWithoutSecrets {
     public:
       virtual bool OnWindowSizeChanged() = 0;
       virtual bool Draw() = 0;
+      virtual void Shutdown() {};
 
       virtual bool ReadyToDraw() const final {
         return CanRender;

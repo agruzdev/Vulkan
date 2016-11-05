@@ -24,7 +24,13 @@ int main() {
         applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
         applicationInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 
-        std::vector<const char*> extensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+        std::vector<const char*> extensions = { 
+#ifndef NDEBUG
+            VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+#endif
+            VK_KHR_SURFACE_EXTENSION_NAME, 
+            VK_KHR_WIN32_SURFACE_EXTENSION_NAME 
+        };
         std::cout << "Check extensions...";
         CheckExtensions(extensions);
         std::cout << "OK" << std::endl;
@@ -34,6 +40,12 @@ int main() {
         instanceCreateInfo.pApplicationInfo = &applicationInfo;
         instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         instanceCreateInfo.ppEnabledExtensionNames = &extensions[0];
+#ifndef NDEBUG
+        std::vector<const char*> layers = { "VK_LAYER_LUNARG_standard_validation" };
+        CheckLayers(layers);
+        instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
+        instanceCreateInfo.ppEnabledLayerNames = &layers[0];
+#endif
         VulkanHolder<vk::Instance> vulkan = vk::createInstance(instanceCreateInfo);
         if (!vulkan) {
             throw std::runtime_error("Failed to create Vulkan instance");

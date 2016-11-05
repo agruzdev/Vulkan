@@ -132,6 +132,7 @@ namespace ApiWithoutSecrets {
           }
         }
       }
+      tutorial.Shutdown();
 
       return result;
     }

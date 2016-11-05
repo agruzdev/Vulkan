@@ -100,7 +100,13 @@ public:
         /*
          * Check that al necessary extensions are presented
          */
-        std::vector<const char*> extensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+        std::vector<const char*> extensions = {
+#ifndef NDEBUG
+            VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+#endif
+            VK_KHR_SURFACE_EXTENSION_NAME, 
+            VK_KHR_WIN32_SURFACE_EXTENSION_NAME 
+        };
         std::cout << "Check extensions...";
         CheckExtensions(extensions);
         std::cout << "OK" << std::endl;
@@ -114,6 +120,12 @@ public:
         instanceCreateInfo.pApplicationInfo = &applicationInfo;
         instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         instanceCreateInfo.ppEnabledExtensionNames = &extensions[0];
+#ifndef NDEBUG
+        std::vector<const char*> layers = { "VK_LAYER_LUNARG_standard_validation" };
+        CheckLayers(layers);
+        instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
+        instanceCreateInfo.ppEnabledLayerNames = &layers[0];
+#endif
         mVulkan = vk::createInstance(instanceCreateInfo);
         if (!mVulkan) {
             throw std::runtime_error("Failed to create Vulkan instance");
@@ -295,7 +307,7 @@ public:
                 barrierFromClearToPresent.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
                 barrierFromClearToPresent.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
                 barrierFromClearToPresent.oldLayout = vk::ImageLayout::eTransferDstOptimal;
-                barrierFromClearToPresent.newLayout = vk::ImageLayout::eUndefined;
+                barrierFromClearToPresent.newLayout = vk::ImageLayout::ePresentSrcKHR;
                 barrierFromClearToPresent.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrierFromClearToPresent.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrierFromClearToPresent.image = swapchainImages[idx];
@@ -357,6 +369,13 @@ public:
         return true;
     }
 
+
+    void Shutdown() override
+    {
+        if (*mDevice) {
+            mDevice->waitIdle();
+        }
+    }
 };
 
 int main() {

@@ -142,10 +142,6 @@ public:
         CheckExtensions(extensions);
         std::cout << "OK" << std::endl;
 
-        std::vector<const char*> layers = {
-            "VK_LAYER_LUNARG_standard_validation"
-        };
-
         /*
          * Create Vulkan instance
          * All used extensions should be specified in the create info
@@ -156,6 +152,8 @@ public:
         instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         instanceCreateInfo.ppEnabledExtensionNames = &extensions[0];
 #ifndef NDEBUG
+        std::vector<const char*> layers = { "VK_LAYER_LUNARG_standard_validation" };
+        CheckLayers(layers);
         instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
         instanceCreateInfo.ppEnabledLayerNames = &layers[0];
 #endif
@@ -341,8 +339,8 @@ public:
         /* Simplest solution - using fixed sizes for frame bufer less than window size
          * Color attachment size happens to be smaller than window size
          */
-        const size_t frameBufferWidth  = width  - 64;
-        const size_t frameBufferHeight = height - 64;
+        const uint32_t frameBufferWidth  = width  - 64;
+        const uint32_t frameBufferHeight = height - 64;
 
         {
             std::cout << "Create framebuffers... ";
@@ -565,6 +563,13 @@ public:
             return false;
         }
         return true;
+    }
+
+    void Shutdown() override
+    {
+        if (*mDevice) {
+            mDevice->waitIdle();
+        }
     }
 
 };

@@ -196,6 +196,19 @@ void CheckExtensions(std::vector<const char*> & names)
 }
 
 inline
+void CheckLayers(std::vector<const char*> & names)
+{
+    auto extensions = vk::enumerateInstanceLayerProperties();
+    for (const auto & requestedExt : names) {
+        if (extensions.cend() == std::find_if(extensions.cbegin(), extensions.cend(), [&requestedExt](const vk::LayerProperties & prop) {
+            return (0 == std::strcmp(prop.layerName, requestedExt));
+        })) {
+            throw std::runtime_error(std::string("Layer is not supported ") + requestedExt);
+        }
+    }
+}
+
+inline
 void CheckDeviceExtensions(const vk::PhysicalDevice & physDevice, std::vector<const char*> & names)
 {
     auto extensions = physDevice.enumerateDeviceExtensionProperties();

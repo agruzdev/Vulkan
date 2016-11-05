@@ -33,6 +33,9 @@ class Sample_03_Window
     vk::PhysicalDevice mPhysicalDevice;
     vk::Queue mCommandQueue;
 
+    uint32_t mQueueFamilyGraphics = std::numeric_limits<uint32_t>::max();
+    uint32_t mQueueFamilyPresent = std::numeric_limits<uint32_t>::max();
+
     std::array< std::array<float, 4>, 6 > mColors = {
         std::array<float, 4>{ 1.0f, 0.0f, 0.0f, 1.0f },
                             { 1.0f, 1.0f, 0.0f, 1.0f },
@@ -135,7 +138,13 @@ public:
         /*
          * Check that al necessary extensions are presented
          */
-        std::vector<const char*> extensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+        std::vector<const char*> extensions = {
+#ifndef NDEBUG
+            VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+#endif
+            VK_KHR_SURFACE_EXTENSION_NAME,
+            VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+        };
         std::cout << "Check extensions...";
         CheckExtensions(extensions);
         std::cout << "OK" << std::endl;
@@ -149,6 +158,12 @@ public:
         instanceCreateInfo.pApplicationInfo = &applicationInfo;
         instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         instanceCreateInfo.ppEnabledExtensionNames = &extensions[0];
+#ifndef NDEBUG
+        std::vector<const char*> layers = { "VK_LAYER_LUNARG_standard_validation" };
+        CheckLayers(layers);
+        instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
+        instanceCreateInfo.ppEnabledLayerNames = &layers[0];
+#endif
         mVulkan = vk::createInstance(instanceCreateInfo);
         if (!mVulkan) {
             throw std::runtime_error("Failed to create Vulkan instance");
@@ -175,11 +190,8 @@ public:
          * Choose a queue with supports creating swapchain
          */
         auto queueProperties = mPhysicalDevice.getQueueFamilyProperties();
-        uint32_t queueFamilyIndex  = static_cast<uint32_t>(queueProperties.size());
-        uint32_t queueFamilyIndex2 = static_cast<uint32_t>(queueProperties.size());
-
-        CheckPhysicalDeviceProperties(mPhysicalDevice, queueFamilyIndex, queueFamilyIndex2);
-        if (queueFamilyIndex >= queueProperties.size()) {
+        CheckPhysicalDeviceProperties(mPhysicalDevice, mQueueFamilyGraphics, mQueueFamilyPresent);
+        if (mQueueFamilyPresent >= queueProperties.size()) {
             throw std::runtime_error("Device doesn't support rendering to VkSurface");
         }
 
@@ -194,7 +206,7 @@ public:
         std::cout << "Create logical device...";
         std::vector<float> queuePriorities = { 1.0f };
         vk::DeviceQueueCreateInfo queueCreateInfo;
-        queueCreateInfo.queueFamilyIndex = static_cast<uint32_t>(queueFamilyIndex);
+        queueCreateInfo.queueFamilyIndex = static_cast<uint32_t>(mQueueFamilyPresent);
         queueCreateInfo.queueCount = static_cast<uint32_t>(queuePriorities.size());
         queueCreateInfo.pQueuePriorities = &queuePriorities[0];
         vk::DeviceCreateInfo deviceCreateInfo;
@@ -209,7 +221,7 @@ public:
         /*
         * Retrieve a command queue
         */
-        mCommandQueue = mDevice->getQueue(static_cast<uint32_t>(queueFamilyIndex), 0);
+        mCommandQueue = mDevice->getQueue(static_cast<uint32_t>(mQueueFamilyPresent), 0);
 
         /*
         *  https://software.intel.com/en-us/articles/api-without-secrets-introduction-to-vulkan-part-2
@@ -289,7 +301,7 @@ public:
         auto swapchainImages = mDevice->getSwapchainImagesKHR(mSwapChain);
 
         std::cout << "Create commands pool...";
-        mCommandPool = MakeHolder(mDevice->createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), static_cast<uint32_t>(queueFamilyIndex))),
+        mCommandPool = MakeHolder(mDevice->createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), static_cast<uint32_t>(mQueueFamilyPresent))),
             [this](vk::CommandPool & pool) { mDevice->destroyCommandPool(pool); });
         std::cout << "OK" << std::endl;
 
@@ -340,8 +352,8 @@ public:
             barrierFromPresentToClear.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
             barrierFromPresentToClear.oldLayout = vk::ImageLayout::eUndefined;
             barrierFromPresentToClear.newLayout = vk::ImageLayout::eTransferDstOptimal;
-            barrierFromPresentToClear.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrierFromPresentToClear.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrierFromPresentToClear.srcQueueFamilyIndex = mQueueFamilyPresent;
+            barrierFromPresentToClear.dstQueueFamilyIndex = mQueueFamilyPresent;
             barrierFromPresentToClear.image = swapchainImages[imageIdx.value];
             barrierFromPresentToClear.subresourceRange = range;
             cmdBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPresentToClear);
@@ -352,9 +364,9 @@ public:
             barrierFromClearToPresent.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
             barrierFromClearToPresent.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
             barrierFromClearToPresent.oldLayout = vk::ImageLayout::eTransferDstOptimal;
-            barrierFromClearToPresent.newLayout = vk::ImageLayout::eUndefined;
-            barrierFromClearToPresent.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrierFromClearToPresent.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrierFromClearToPresent.newLayout = vk::ImageLayout::ePresentSrcKHR;
+            barrierFromClearToPresent.srcQueueFamilyIndex = mQueueFamilyPresent;
+            barrierFromClearToPresent.dstQueueFamilyIndex = mQueueFamilyPresent;
             barrierFromClearToPresent.image = swapchainImages[imageIdx.value];
             barrierFromClearToPresent.subresourceRange = range;
             cmdBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromClearToPresent);
@@ -392,9 +404,18 @@ public:
             std::cout << "Failed to present image! Stoppping." << std::endl;
             return false;
         }
+
+        mDevice->waitIdle(); // bruteforce
+
         return true;
     }
 
+    void Shutdown() override
+    {
+        if (*mDevice) {
+            mDevice->waitIdle();
+        }
+    }
 };
 
 int main() {
