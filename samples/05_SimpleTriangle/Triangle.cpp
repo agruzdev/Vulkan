@@ -306,6 +306,15 @@ public:
 
         /* Setting up a render pass now
          * https://software.intel.com/en-us/articles/api-without-secrets-introduction-to-vulkan-part-3
+         * What is a render pass? A general picture can give us a “logical” render pass that may be found 
+         * in many known rendering techniques like deferred shading. This technique consists of many subpasses. 
+         * The first subpass draws the geometry with shaders that fill the G-Buffer: store diffuse color 
+         * in one texture, normal vectors in another, shininess in another, depth (position) in yet another. 
+         * Next for each light source, drawing is performed that reads some of the data (normal vectors, 
+         * shininess, depth/position), calculates lighting and stores it in another texture. 
+         * Final pass aggregates lighting data with diffuse color. This is a (very rough) explanation of 
+         * deferred shading but describes the render pass—a set of data required to perform some drawing 
+         * operations: storing data in textures and reading data from other textures.
          */
         {
             std::cout << "Create render pass... ";
@@ -382,6 +391,13 @@ public:
         mFragmentShader = LoadShader(QUOTE(SHADERS_DIR) "/spv/frag.spv");
         std::cout << "OK" << std::endl;
 
+        /**
+         * A pipeline is a collection of stages that process data one stage after another. 
+         * In Vulkan there is currently a compute pipeline and a graphics pipeline. 
+         * The compute pipeline allows us to perform some computational work, such as 
+         * performing physics calculations for objects in games. The graphics 
+         * pipeline is used for drawing operations.
+         */
         {
             std::cout << "Create pipeline... ";
 
