@@ -79,7 +79,7 @@ namespace ApiWithoutSecrets {
       }
 
       // Create window
-      Parameters.Handle = CreateWindow( TUTORIAL_NAME, title, WS_OVERLAPPEDWINDOW, 20, 20, width, height, nullptr, nullptr, Parameters.Instance, nullptr );
+      Parameters.Handle = CreateWindow(TUTORIAL_NAME, title, WS_SYSMENU, 20, 20, width, height, nullptr, nullptr, Parameters.Instance, nullptr);
       if( !Parameters.Handle ) {
         return false;
       }

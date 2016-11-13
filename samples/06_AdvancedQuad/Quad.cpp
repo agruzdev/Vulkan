@@ -19,6 +19,23 @@
 class Sample_03_Window
     : public ApiWithoutSecrets::OS::TutorialBase
 {
+    struct VertexData
+    {
+        float   x, y, z, w;
+        float   r, g, b, a;
+    };
+
+    struct RenderingResource
+    {
+        vk::Image imageHandle;
+        VulkanHolder<vk::CommandBuffer> commandBuffer;
+        VulkanHolder<vk::ImageView> imageView;
+        VulkanHolder<vk::Framebuffer> framebuffer;
+        VulkanHolder<vk::Semaphore> semaphoreAvailable;
+        VulkanHolder<vk::Semaphore> semaphoreFinished;
+        VulkanHolder<vk::Fence> fence;
+    };
+
     VulkanHolder<vk::Instance> mVulkan;
     VulkanHolder<vk::Device> mDevice;
     VulkanHolder<vk::SurfaceKHR> mSurface;
@@ -26,8 +43,8 @@ class Sample_03_Window
 
     VulkanHolder<vk::RenderPass> mRenderPass;
 
-    std::vector<VulkanHolder<vk::ImageView>> mImageViews;
-    std::vector<VulkanHolder<vk::Framebuffer>> mFramebuffers;
+    //std::vector<VulkanHolder<vk::ImageView>> mImageViews;
+    //std::vector<VulkanHolder<vk::Framebuffer>> mFramebuffers;
 
     VulkanHolder<vk::ShaderModule> mVertexShader;
     VulkanHolder<vk::ShaderModule> mFragmentShader;
@@ -35,17 +52,25 @@ class Sample_03_Window
     VulkanHolder<vk::PipelineLayout> mPipelineLayout;
     VulkanHolder<vk::Pipeline> mPipeline;
 
-    VulkanHolder<vk::CommandPool> mCommandPool;
-    VulkanHolder<std::vector<vk::CommandBuffer>> mCommandBuffers;
+    VulkanHolder<vk::Buffer> mVertexBuffer;
+    VulkanHolder<vk::DeviceMemory> mVertexMemory;
 
-    VulkanHolder<vk::Semaphore> mSemaphoreImageAcquired;
-    VulkanHolder<vk::Semaphore> mSemaphoreImageReady;
+    VulkanHolder<vk::CommandPool> mCommandPool;
+    //VulkanHolder<std::vector<vk::CommandBuffer>> mCommandBuffers;
+
+    //VulkanHolder<vk::Semaphore> mSemaphoreImageAcquired;
+    //VulkanHolder<vk::Semaphore> mSemaphoreImageReady;
+
+    std::vector<RenderingResource> mRenderingResources;
+    decltype(mRenderingResources)::iterator mRenderingResourceIter;
 
     vk::PhysicalDevice mPhysicalDevice;
     vk::Queue mCommandQueue;
 
     uint32_t mQueueFamilyGraphics = std::numeric_limits<uint32_t>::max();
     uint32_t mQueueFamilyPresent  = std::numeric_limits<uint32_t>::max();
+
+    vk::Extent2D mFramebufferExtents;
 
 public:
     
@@ -293,16 +318,30 @@ public:
 
         auto swapchainImages = mDevice->getSwapchainImagesKHR(mSwapChain);
 
-        std::cout << "Create command buffers...";
-        mCommandPool = MakeHolder(mDevice->createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), static_cast<uint32_t>(mQueueFamilyPresent))),
-            [this](vk::CommandPool & pool) { mDevice->destroyCommandPool(pool); });
-        mCommandBuffers = MakeHolder(mDevice->allocateCommandBuffers(vk::CommandBufferAllocateInfo(mCommandPool, vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(swapchainImages.size()))),
-            [this](std::vector<vk::CommandBuffer> & buffers) { mDevice->freeCommandBuffers(mCommandPool, buffers); });
-        if (mCommandBuffers->size() != static_cast<uint32_t>(swapchainImages.size())) {
-            throw std::runtime_error("Failed to create all command buffers");
-        }
-        std::cout << "OK" << std::endl;
+        mRenderingResources.resize(swapchainImages.size());
+        mFramebufferExtents = imageSize;
 
+        std::cout << "Create command buffers...";
+        {
+            vk::CommandPoolCreateInfo commandsPoolInfo;
+            commandsPoolInfo.setQueueFamilyIndex(mQueueFamilyPresent);
+            commandsPoolInfo.setFlags(vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+            mCommandPool = MakeHolder(mDevice->createCommandPool(commandsPoolInfo), [this](vk::CommandPool & pool) { mDevice->destroyCommandPool(pool); });
+
+            for (auto & resource : mRenderingResources) {
+                vk::CommandBufferAllocateInfo allocateInfo;
+                allocateInfo.setCommandPool(mCommandPool);
+                allocateInfo.setLevel(vk::CommandBufferLevel::ePrimary);
+                allocateInfo.setCommandBufferCount(1);
+
+                vk::CommandBuffer buffer;
+                if (vk::Result::eSuccess != mDevice->allocateCommandBuffers(&allocateInfo, &buffer)) {
+                    throw std::runtime_error("Failed to create command buffers");
+                }
+                resource.commandBuffer = VulkanHolder<vk::CommandBuffer>(buffer, [this](vk::CommandBuffer & buffer) { mDevice->freeCommandBuffers(mCommandPool, 1, &buffer); });
+            }
+            std::cout << "OK" << std::endl;
+        }
 
         /* Setting up a render pass now
          * https://software.intel.com/en-us/articles/api-without-secrets-introduction-to-vulkan-part-3
@@ -335,23 +374,43 @@ public:
             subpass.setColorAttachmentCount(1);
             subpass.setPColorAttachments(&colorAttachmentRef);
 
+            std::array<vk::SubpassDependency, 2> subpassDependencies;
+            // extern -> 0
+            subpassDependencies[0].setSrcSubpass(VK_SUBPASS_EXTERNAL);
+            subpassDependencies[0].setDstSubpass(0);
+            subpassDependencies[0].setSrcStageMask(vk::PipelineStageFlagBits::eBottomOfPipe);
+            subpassDependencies[0].setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+            subpassDependencies[0].setSrcAccessMask(vk::AccessFlagBits::eMemoryRead);
+            subpassDependencies[0].setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
+            subpassDependencies[0].setDependencyFlags(vk::DependencyFlagBits::eByRegion);
+            // 0 -> extern
+            subpassDependencies[1].setSrcSubpass(0);
+            subpassDependencies[1].setDstSubpass(VK_SUBPASS_EXTERNAL);
+            subpassDependencies[1].setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+            subpassDependencies[1].setDstStageMask(vk::PipelineStageFlagBits::eBottomOfPipe);
+            subpassDependencies[1].setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
+            subpassDependencies[1].setDstAccessMask(vk::AccessFlagBits::eMemoryRead);
+            subpassDependencies[1].setDependencyFlags(vk::DependencyFlagBits::eByRegion);
+
             vk::RenderPassCreateInfo renderPassInfo;
             renderPassInfo.setAttachmentCount(1);
             renderPassInfo.setPAttachments(&colorAttachmentDesc);
             renderPassInfo.setSubpassCount(1);
             renderPassInfo.setPSubpasses(&subpass);
+            renderPassInfo.setDependencyCount(static_cast<uint32_t>(subpassDependencies.size()));
+            renderPassInfo.setPDependencies(&subpassDependencies[0]);
 
             mRenderPass = MakeHolder(mDevice->createRenderPass(renderPassInfo), [this](vk::RenderPass & rpass) { mDevice->destroyRenderPass(rpass); });
             std::cout << "OK" << std::endl;
         }
 
-        const uint32_t frameBufferWidth  = imageSize.width;
-        const uint32_t frameBufferHeight = imageSize.height;
         {
             std::cout << "Create framebuffers... ";
-            mImageViews.resize(swapchainImages.size());
-            mFramebuffers.resize(swapchainImages.size());
+            //mImageViews.resize(swapchainImages.size());
+            //mFramebuffers.resize(swapchainImages.size());
             for (size_t i = 0; i < swapchainImages.size(); ++i) {
+                mRenderingResources[i].imageHandle = swapchainImages[i];
+
                 vk::ImageViewCreateInfo imageViewInfo;
                 imageViewInfo.setImage(swapchainImages[i]);
                 imageViewInfo.setViewType(vk::ImageViewType::e2D);
@@ -359,17 +418,19 @@ public:
                 imageViewInfo.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity));
                 imageViewInfo.setSubresourceRange(vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
 
-                mImageViews[i] = MakeHolder(mDevice->createImageView(imageViewInfo), [this](vk::ImageView & view) { mDevice->destroyImageView(view); });
+                //mImageViews[i] = MakeHolder(mDevice->createImageView(imageViewInfo), [this](vk::ImageView & view) { mDevice->destroyImageView(view); });
+                mRenderingResources[i].imageView = MakeHolder(mDevice->createImageView(imageViewInfo), [this](vk::ImageView & view) { mDevice->destroyImageView(view); });
 
                 vk::FramebufferCreateInfo framebufferInfo;
                 framebufferInfo.setRenderPass(*mRenderPass);
                 framebufferInfo.setAttachmentCount(1);
-                framebufferInfo.setPAttachments(mImageViews[i].get());
-                framebufferInfo.setWidth(frameBufferWidth);
-                framebufferInfo.setHeight(frameBufferHeight);
+                framebufferInfo.setPAttachments(mRenderingResources[i].imageView.get());
+                framebufferInfo.setWidth(imageSize.width);
+                framebufferInfo.setHeight(imageSize.height);
                 framebufferInfo.setLayers(1);
 
-                mFramebuffers[i] = MakeHolder(mDevice->createFramebuffer(framebufferInfo), [this](vk::Framebuffer & f) { mDevice->destroyFramebuffer(f); });
+                //mFramebuffers[i] = MakeHolder(mDevice->createFramebuffer(framebufferInfo), [this](vk::Framebuffer & f) { mDevice->destroyFramebuffer(f); });
+                mRenderingResources[i].framebuffer = MakeHolder(mDevice->createFramebuffer(framebufferInfo), [this](vk::Framebuffer & f) { mDevice->destroyFramebuffer(f); });
             }
             std::cout << "OK" << std::endl;
         }
@@ -378,11 +439,11 @@ public:
          */
 
         std::cout << "Loading vertex shader... ";
-        mVertexShader = LoadShader(QUOTE(SHADERS_DIR) "/spv/05.vert.spv");
+        mVertexShader = LoadShader(QUOTE(SHADERS_DIR) "/spv/06.vert.spv");
         std::cout << "OK" << std::endl;
 
         std::cout << "Loading fragment shader... ";
-        mFragmentShader = LoadShader(QUOTE(SHADERS_DIR) "/spv/05.frag.spv");
+        mFragmentShader = LoadShader(QUOTE(SHADERS_DIR) "/spv/06.frag.spv");
         std::cout << "OK" << std::endl;
 
         /**
@@ -404,22 +465,43 @@ public:
             stageInfos[1].setModule(mFragmentShader);
             stageInfos[1].setPName("main"); // Shader entry point
 
-            // by default because verticles are hardcoded in shader
+            vk::VertexInputBindingDescription inputBindingInfo;
+            inputBindingInfo.setBinding(0);
+            inputBindingInfo.setStride(sizeof(VertexData));
+            inputBindingInfo.setInputRate(vk::VertexInputRate::eVertex); // consumed per vertex
+
+            std::array<vk::VertexInputAttributeDescription, 2> attributeInfo;
+            // Position
+            attributeInfo[0].setLocation(0);
+            attributeInfo[0].setBinding(inputBindingInfo.binding);
+            attributeInfo[0].setFormat(vk::Format::eR32G32B32A32Sfloat);
+            attributeInfo[0].setOffset(offsetof(VertexData, x));
+            // Color
+            attributeInfo[1].setLocation(1);
+            attributeInfo[1].setBinding(inputBindingInfo.binding);
+            attributeInfo[1].setFormat(vk::Format::eR32G32B32A32Sfloat);
+            attributeInfo[1].setOffset(offsetof(VertexData, r));
+
             vk::PipelineVertexInputStateCreateInfo vertexInputInfo; 
+            vertexInputInfo.setVertexBindingDescriptionCount(1);
+            vertexInputInfo.setPVertexBindingDescriptions(&inputBindingInfo);
+            vertexInputInfo.setVertexAttributeDescriptionCount(2);
+            vertexInputInfo.setPVertexAttributeDescriptions(&attributeInfo[0]);
 
             vk::PipelineInputAssemblyStateCreateInfo inputAssembleInfo;
-            inputAssembleInfo.setTopology(vk::PrimitiveTopology::eTriangleList);
-
-            vk::Viewport viewport(0.0f, 0.0f, static_cast<float>(frameBufferWidth), static_cast<float>(frameBufferHeight), 0.0f, 1.0f);
-
-            vk::Rect2D scissor(vk::Offset2D(0, 0), vk::Extent2D(frameBufferWidth, frameBufferHeight));
+            inputAssembleInfo.setTopology(vk::PrimitiveTopology::eTriangleStrip);
 
             vk::PipelineViewportStateCreateInfo viewportInfo;
             viewportInfo.setViewportCount(1);  
-            viewportInfo.setPViewports(&viewport);
+            viewportInfo.setPViewports(nullptr);
             viewportInfo.setScissorCount(1);
-            viewportInfo.setPScissors(&scissor);
+            viewportInfo.setPScissors(nullptr);
             // the viewportCount and scissorCount parameters must be equal
+
+            std::array<vk::DynamicState, 2> dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+            vk::PipelineDynamicStateCreateInfo dynamicStateInfo;
+            dynamicStateInfo.setDynamicStateCount(static_cast<uint32_t>(dynamicStates.size()));
+            dynamicStateInfo.setPDynamicStates(&dynamicStates[0]);
 
             vk::PipelineRasterizationStateCreateInfo rasterizationInfo;
             rasterizationInfo.setDepthClampEnable(VK_FALSE);
@@ -455,81 +537,76 @@ public:
             grapichsPipelineInfo.setPColorBlendState(&blendingInfo);
             grapichsPipelineInfo.setLayout(mPipelineLayout);
             grapichsPipelineInfo.setRenderPass(mRenderPass);
+            grapichsPipelineInfo.setPDynamicState(&dynamicStateInfo);
             
             mPipeline = MakeHolder(mDevice->createGraphicsPipeline(vk::PipelineCache(), grapichsPipelineInfo), [this](vk::Pipeline & pipeline) {mDevice->destroyPipeline(pipeline); });
 
             std::cout << "OK" << std::endl;
         }
 
-        /* Preaparing command buffers
-         */
-
-        std::cout << "Prepare command buffers...";
+        std::cout << "Prepare vertex buffer...";
         {
-            vk::ClearColorValue targetColor = std::array<float, 4>{ 0.1f, 1.0f, 0.1f, 1.0f };
-            vk::ClearValue clearValue(targetColor);
+            const VertexData vertexData[] = {
+                {  /* Position */ -0.7f, -0.7f, 0.0f, 1.0f,  /* Color */ 1.0f, 0.0f, 0.0f, 0.0f }, 
+                {  /* Position */ -0.7f,  0.7f, 0.0f, 1.0f,  /* Color */ 0.0f, 1.0f, 0.0f, 0.0f }, 
+                {  /* Position */  0.7f, -0.7f, 0.0f, 1.0f,  /* Color */ 0.0f, 0.0f, 1.0f, 0.0f }, 
+                {  /* Position */  0.7f,  0.7f, 0.0f, 1.0f,  /* Color */ 0.3f, 0.3f, 0.3f, 0.0f }
+            };
+            const uint32_t vertexBufferSize = sizeof(vertexData);
 
-            vk::ImageSubresourceRange range;
-            range.aspectMask = vk::ImageAspectFlagBits::eColor;
-            range.baseMipLevel = 0;
-            range.levelCount = 1;
-            range.baseArrayLayer = 0;
-            range.layerCount = 1;
+            vk::BufferCreateInfo bufferInfo;
+            bufferInfo.setSize(vertexBufferSize);
+            bufferInfo.setUsage(vk::BufferUsageFlagBits::eVertexBuffer);
+            bufferInfo.setSharingMode(vk::SharingMode::eExclusive);
+            mVertexBuffer = MakeHolder(mDevice->createBuffer(bufferInfo), [this](vk::Buffer & buffer) { mDevice->destroyBuffer(buffer); });
 
-            for (uint32_t idx = 0; idx < static_cast<uint32_t>(mCommandBuffers->size()); ++idx) {
-                vk::CommandBuffer & cmdBuffer = (*mCommandBuffers)[idx];
-                cmdBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
+            vk::MemoryRequirements vertexMemoryRequirements = mDevice->getBufferMemoryRequirements(mVertexBuffer);
 
-                if (mQueueFamilyPresent != mQueueFamilyGraphics) {
-                    vk::ImageMemoryBarrier barrierFromPresentToDraw;
-                    barrierFromPresentToDraw.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
-                    barrierFromPresentToDraw.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-                    barrierFromPresentToDraw.oldLayout = vk::ImageLayout::ePresentSrcKHR;
-                    barrierFromPresentToDraw.newLayout = vk::ImageLayout::ePresentSrcKHR;
-                    barrierFromPresentToDraw.srcQueueFamilyIndex = mQueueFamilyPresent;
-                    barrierFromPresentToDraw.dstQueueFamilyIndex = mQueueFamilyGraphics;
-                    barrierFromPresentToDraw.image = swapchainImages[idx];
-                    barrierFromPresentToDraw.subresourceRange = range;
-                    cmdBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPresentToDraw);
+            vk::PhysicalDeviceMemoryProperties memroProperties = mPhysicalDevice.getMemoryProperties();
+            for (uint32_t i = 0; i < memroProperties.memoryTypeCount; ++i) {
+                if ((vertexMemoryRequirements.memoryTypeBits & (1 << i)) &&
+                    (memroProperties.memoryTypes[i].propertyFlags & vk::MemoryPropertyFlagBits::eHostVisible)) {
+
+                    vk::MemoryAllocateInfo allocateInfo;
+                    allocateInfo.setAllocationSize(vertexMemoryRequirements.size);
+                    allocateInfo.setMemoryTypeIndex(i);
+                    mVertexMemory = MakeHolder(mDevice->allocateMemory(allocateInfo), [this](vk::DeviceMemory & memory) { mDevice->freeMemory(memory); });
                 }
-                vk::RenderPassBeginInfo renderPassInfo;
-                renderPassInfo.setRenderPass(mRenderPass);
-                renderPassInfo.setFramebuffer(mFramebuffers[idx]);
-                renderPassInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0, 0), vk::Extent2D(frameBufferWidth, frameBufferHeight)));
-                renderPassInfo.setClearValueCount(1);
-                renderPassInfo.setPClearValues(&clearValue);
-                cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-
-                //cmdBuffer.clearColorImage(swapchainImages[idx], vk::ImageLayout::ePresentSrcKHR, &targetColor, 1, &range);
-
-                cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
-
-                cmdBuffer.draw(3, 1, 0, 0);
-
-                cmdBuffer.endRenderPass();
-
-                if (mQueueFamilyPresent != mQueueFamilyGraphics) {
-                    vk::ImageMemoryBarrier barrierFromDrawToPresent;
-                    barrierFromDrawToPresent.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-                    barrierFromDrawToPresent.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
-                    barrierFromDrawToPresent.oldLayout = vk::ImageLayout::ePresentSrcKHR;
-                    barrierFromDrawToPresent.newLayout = vk::ImageLayout::ePresentSrcKHR;
-                    barrierFromDrawToPresent.srcQueueFamilyIndex = mQueueFamilyGraphics;
-                    barrierFromDrawToPresent.dstQueueFamilyIndex = mQueueFamilyPresent;
-                    barrierFromDrawToPresent.image = swapchainImages[idx];
-                    barrierFromDrawToPresent.subresourceRange = range;
-                    cmdBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromDrawToPresent);
-                }
-                cmdBuffer.end();
             }
+            if (!mVertexMemory) {
+                throw std::runtime_error("Failed to allocate memory for vertex buffer");
+            }
+            mDevice->bindBufferMemory(mVertexBuffer, mVertexMemory, 0);
+
+            void* devicePtr = mDevice->mapMemory(mVertexMemory, 0, vertexBufferSize);
+            if (devicePtr == nullptr) {
+                throw std::runtime_error("Failed to map memory for vertex buffer");
+            }
+            std::memcpy(devicePtr, &vertexData[0], vertexBufferSize);
+
+            vk::MappedMemoryRange mappedRange;
+            mappedRange.setMemory(mVertexMemory);
+            mappedRange.setOffset(0);
+            mappedRange.setSize(VK_WHOLE_SIZE);
+            mDevice->flushMappedMemoryRanges(mappedRange);
+
+            mDevice->unmapMemory(mVertexMemory);
+
+            std::cout << "OK" << std::endl;
         }
-        std::cout << "OK" << std::endl;
 
-        mSemaphoreImageAcquired = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
-        mSemaphoreImageReady    = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
+        // Prepareing sync resources
+        for (auto & resource : mRenderingResources) {
+            resource.semaphoreAvailable = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
+            resource.semaphoreFinished  = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
 
+            vk::FenceCreateInfo fenceInfo;
+            fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
+            resource.fence = MakeHolder(mDevice->createFence(fenceInfo), [this](vk::Fence & fence) { mDevice->destroyFence(fence); });
+        }
+
+        mRenderingResourceIter = mRenderingResources.begin();
         CanRender = true;
-
     }
 
     bool OnWindowSizeChanged() override 
@@ -540,30 +617,105 @@ public:
     bool Draw() override
     {
         constexpr uint64_t TIMEOUT = 1 * 1000 * 1000 * 1000; // 1 second in nanos
-        auto imageIdx = mDevice->acquireNextImageKHR(mSwapChain, TIMEOUT, mSemaphoreImageAcquired, nullptr);
+        auto & renderingResource = *mRenderingResourceIter;
+
+        if (vk::Result::eSuccess != mDevice->waitForFences(1, renderingResource.fence.get(), VK_FALSE, TIMEOUT)) {
+            std::cout << "Waiting for fence takes too long!" << std::endl;
+            return false;
+        }
+        mDevice->resetFences(1, renderingResource.fence.get());
+
+        auto imageIdx = mDevice->acquireNextImageKHR(mSwapChain, TIMEOUT, renderingResource.semaphoreAvailable, nullptr);
         if (imageIdx.result != vk::Result::eSuccess) {
             std::cout << "Failed to acquire image! Stoppping." << std::endl;
             return false;
         }
 
+        // Preapare command buffer
+        auto& cmdBuffer = renderingResource.commandBuffer;
+        vk::CommandBufferBeginInfo beginInfo;
+        beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+        cmdBuffer->begin(beginInfo);
+
+        vk::ImageSubresourceRange range;
+        range.aspectMask = vk::ImageAspectFlagBits::eColor;
+        range.baseMipLevel = 0;
+        range.levelCount = 1;
+        range.baseArrayLayer = 0;
+        range.layerCount = 1;
+
+        if (mQueueFamilyPresent != mQueueFamilyGraphics) {
+            vk::ImageMemoryBarrier barrierFromPresentToDraw;
+            barrierFromPresentToDraw.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+            barrierFromPresentToDraw.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
+            barrierFromPresentToDraw.oldLayout = vk::ImageLayout::ePresentSrcKHR;
+            barrierFromPresentToDraw.newLayout = vk::ImageLayout::ePresentSrcKHR;
+            barrierFromPresentToDraw.srcQueueFamilyIndex = mQueueFamilyPresent;
+            barrierFromPresentToDraw.dstQueueFamilyIndex = mQueueFamilyGraphics;
+            barrierFromPresentToDraw.image = renderingResource.imageHandle;
+            barrierFromPresentToDraw.subresourceRange = range;
+            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPresentToDraw);
+        }
+
+        vk::ClearColorValue targetColor = std::array<float, 4>{ 0.1f, 1.0f, 0.1f, 1.0f };
+        vk::ClearValue clearValue(targetColor);
+
+        vk::RenderPassBeginInfo renderPassInfo;
+        renderPassInfo.setRenderPass(mRenderPass);
+        renderPassInfo.setFramebuffer(renderingResource.framebuffer);
+        renderPassInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0, 0), mFramebufferExtents));
+        renderPassInfo.setClearValueCount(1);
+        renderPassInfo.setPClearValues(&clearValue);
+        cmdBuffer->beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+
+        cmdBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
+
+        // Could be static, but let's try dynamic approach
+        vk::Viewport viewport(0.0f, 0.0f, static_cast<float>(mFramebufferExtents.width), static_cast<float>(mFramebufferExtents.height), 0.0f, 1.0f);
+        vk::Rect2D   scissor(vk::Offset2D(0, 0), mFramebufferExtents);
+        cmdBuffer->setViewport(0, 1, &viewport);
+        cmdBuffer->setScissor(0, 1, &scissor);
+
+        vk::DeviceSize offset = 0;
+        cmdBuffer->bindVertexBuffers(0, 1, mVertexBuffer.get(), &offset);
+
+        cmdBuffer->draw(4, 1, 0, 0);
+
+        cmdBuffer->endRenderPass();
+
+        if (mQueueFamilyPresent != mQueueFamilyGraphics) {
+            vk::ImageMemoryBarrier barrierFromDrawToPresent;
+            barrierFromDrawToPresent.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+            barrierFromDrawToPresent.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
+            barrierFromDrawToPresent.oldLayout = vk::ImageLayout::ePresentSrcKHR;
+            barrierFromDrawToPresent.newLayout = vk::ImageLayout::ePresentSrcKHR;
+            barrierFromDrawToPresent.srcQueueFamilyIndex = mQueueFamilyGraphics;
+            barrierFromDrawToPresent.dstQueueFamilyIndex = mQueueFamilyPresent;
+            barrierFromDrawToPresent.image = renderingResource.imageHandle;
+            barrierFromDrawToPresent.subresourceRange = range;
+            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromDrawToPresent);
+        }
+        cmdBuffer->end();
+
+        // Submit
         vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlagBits::eTransfer;
 
         vk::SubmitInfo submitInfo;
         submitInfo.pWaitDstStageMask = &waitDstStageMask;
         submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = mSemaphoreImageAcquired.get();
+        submitInfo.pWaitSemaphores = renderingResource.semaphoreAvailable.get();
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &(*mCommandBuffers)[imageIdx.value];
+        submitInfo.pCommandBuffers = renderingResource.commandBuffer.get();
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = mSemaphoreImageReady.get();
-        if (vk::Result::eSuccess != mCommandQueue.submit(1, &submitInfo, nullptr)) {
+        submitInfo.pSignalSemaphores = renderingResource.semaphoreFinished.get();
+        if (vk::Result::eSuccess != mCommandQueue.submit(1, &submitInfo, renderingResource.fence)) {
             std::cout << "Failed to submit command! Stoppping." << std::endl;
             return false;
         }
 
         vk::PresentInfoKHR presentInfo;
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = mSemaphoreImageReady.get();
+        presentInfo.pWaitSemaphores = renderingResource.semaphoreFinished.get();
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = mSwapChain.get();
         presentInfo.pImageIndices = &imageIdx.value;
@@ -571,6 +723,11 @@ public:
         if (result != vk::Result::eSuccess) {
             std::cout << "Failed to present image! Stoppping." << std::endl;
             return false;
+        }
+
+        ++mRenderingResourceIter;
+        if (mRenderingResourceIter == mRenderingResources.end()) {
+            mRenderingResourceIter = mRenderingResources.begin();
         }
         return true;
     }
@@ -588,7 +745,7 @@ int main() {
     try {
         ApiWithoutSecrets::OS::Window window;
         // Window creation
-        if (!window.Create("05 - Simple triangle", 512, 512)) {
+        if (!window.Create("06 - Advanced quad", 512, 512)) {
             return -1;
         }
 
