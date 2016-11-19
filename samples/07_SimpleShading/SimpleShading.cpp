@@ -90,7 +90,6 @@ class Sample_03_Window
         return res;
     }
 
-    // Generates mesh for TRIANGLES_LIST drawing mode
     static Mesh GenerateSphere(const float radius, const uint16_t rings, const uint16_t segments)
     {
         assert(rings > 1);
