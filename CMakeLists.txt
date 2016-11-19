@@ -46,4 +46,5 @@ add_snippet(03_Window           ${CMAKE_SOURCE_DIR}/samples/03_Window           
 add_snippet(04_DynamicCommands  ${CMAKE_SOURCE_DIR}/samples/04_DynamicCommands  ON)
 add_snippet(05_SimpleTriangle   ${CMAKE_SOURCE_DIR}/samples/05_SimpleTriangle   ON)
 add_snippet(06_AdvancedQuad     ${CMAKE_SOURCE_DIR}/samples/06_AdvancedQuad     ON)
+add_snippet(07_SimpleShading    ${CMAKE_SOURCE_DIR}/samples/07_SimpleShading    ON)
 
