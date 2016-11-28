@@ -558,7 +558,7 @@ public:
             vertexInputInfo.setPVertexAttributeDescriptions(&attributeInfos[0]);
 
             vk::PipelineInputAssemblyStateCreateInfo inputAssembleInfo;
-            inputAssembleInfo.setTopology(vk::PrimitiveTopology::eTriangleStrip);
+            inputAssembleInfo.setTopology(vk::PrimitiveTopology::eTriangleList);
 
             vk::PipelineViewportStateCreateInfo viewportInfo;
             viewportInfo.setViewportCount(1);
@@ -574,7 +574,7 @@ public:
 
             vk::PipelineRasterizationStateCreateInfo rasterizationInfo;
             rasterizationInfo.setDepthClampEnable(VK_FALSE);
-            rasterizationInfo.setCullMode(vk::CullModeFlagBits::eBack);
+            rasterizationInfo.setCullMode(vk::CullModeFlagBits::eFront);
             rasterizationInfo.setPolygonMode(vk::PolygonMode::eFill);
             rasterizationInfo.setFrontFace(vk::FrontFace::eCounterClockwise);
             rasterizationInfo.setLineWidth(1.0f);
