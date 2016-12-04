@@ -39,7 +39,9 @@ set(SHADERS_DIR "${CMAKE_SOURCE_DIR}/shaders")
 
 set(COMMON_DIR ${CMAKE_SOURCE_DIR}/samples/Common)
 list(APPEND COMMON_INCLUDES ${COMMON_DIR})
-                                                      
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/samples/common)
+
 add_snippet(01_Context          ${CMAKE_SOURCE_DIR}/samples/01_Context          ON)
 add_snippet(02_CommandBuffers   ${CMAKE_SOURCE_DIR}/samples/02_CommandBuffers   ON)
 add_snippet(03_Window           ${CMAKE_SOURCE_DIR}/samples/03_Window           ON)
