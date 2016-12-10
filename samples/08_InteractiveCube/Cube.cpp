@@ -412,12 +412,7 @@ public:
             std::runtime_error("Invalid capabilities");
         }
         const uint32_t imagesCount = std::min(surfaceCapabilities.minImageCount + 1, surfaceCapabilities.maxImageCount);
-        vk::Extent2D imageSize = vk::Extent2D(width, height);
-        if (!(surfaceCapabilities.minImageExtent.width <= imageSize.width  && imageSize.width <= surfaceCapabilities.maxImageExtent.width ||
-            surfaceCapabilities.minImageExtent.height <= imageSize.height && imageSize.height <= surfaceCapabilities.maxImageExtent.height)) {
-            throw std::runtime_error("Unsupported image extent");
-        }
-        imageSize = surfaceCapabilities.currentExtent;
+        vk::Extent2D imageSize = surfaceCapabilities.currentExtent; // Use current surface size
 
         auto supportedFormats = mPhysicalDevice.getSurfaceFormatsKHR(mSurface);
         if (supportedFormats.empty()) {
@@ -559,8 +554,6 @@ public:
 
         {
             std::cout << "Create framebuffers... ";
-            //mImageViews.resize(swapchainImages.size());
-            //mFramebuffers.resize(swapchainImages.size());
             for (size_t i = 0; i < swapchainImages.size(); ++i) {
                 mRenderingResources[i].imageHandle = swapchainImages[i];
 
@@ -571,7 +564,6 @@ public:
                 imageViewInfo.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity));
                 imageViewInfo.setSubresourceRange(vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
 
-                //mImageViews[i] = MakeHolder(mDevice->createImageView(imageViewInfo), [this](vk::ImageView & view) { mDevice->destroyImageView(view); });
                 mRenderingResources[i].imageView = MakeHolder(mDevice->createImageView(imageViewInfo), [this](vk::ImageView & view) { mDevice->destroyImageView(view); });
 
                 vk::FramebufferCreateInfo framebufferInfo;
@@ -582,7 +574,6 @@ public:
                 framebufferInfo.setHeight(imageSize.height);
                 framebufferInfo.setLayers(1);
 
-                //mFramebuffers[i] = MakeHolder(mDevice->createFramebuffer(framebufferInfo), [this](vk::Framebuffer & f) { mDevice->destroyFramebuffer(f); });
                 mRenderingResources[i].framebuffer = MakeHolder(mDevice->createFramebuffer(framebufferInfo), [this](vk::Framebuffer & f) { mDevice->destroyFramebuffer(f); });
             }
             std::cout << "OK" << std::endl;
