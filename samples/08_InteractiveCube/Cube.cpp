@@ -19,11 +19,13 @@
 #include <VulkanUtility.h>
 #include <OperatingSystem.h>
 
+#include <math/OgreVector2.h>
 #include <math/OgreVector4.h>
 #include <math/OgreMatrix4.h>
 
 class Sample_03_Window
     : public ApiWithoutSecrets::OS::TutorialBase
+    , public ApiWithoutSecrets::OS::MouseListener
 {
 
     struct VertexData
@@ -97,9 +99,13 @@ class Sample_03_Window
 
     VertexUniformBuffer mMatrixes;
     Ogre::Vector3 mPosition;
-    Ogre::Quaternion mCurrentOrientation;
 
-    // From Intel tutorials
+    Ogre::Vector2 mMousePosition;
+    bool mIsMouseDown = false;
+    Ogre::Quaternion mDefaultOrientation;
+    Ogre::Quaternion mRotationX;
+    Ogre::Quaternion mRotationY;
+
     static void MakePerspectiveProjectionMatrix(Ogre::Matrix4 & dst, const float aspectRatio, const float fieldOfView, const float nearClip, const float farClip)
     {
         const float f = 1.0f / std::tan(fieldOfView * 0.5f * 0.01745329251994329576923690768489f);
@@ -174,6 +180,49 @@ class Sample_03_Window
         };
 
         return cube;
+    }
+
+    static Mesh GenerateSphere(const float radius, const uint16_t rings, const uint16_t segments)
+    {
+        assert(rings > 1);
+        assert(segments > 2);
+
+        Mesh sphere;
+
+        // Code adopted from Ogre::PrefabFactory
+        // https://bitbucket.org/sinbad/ogre/src
+
+        const float deltaRingAngle = static_cast<float>(M_PI / rings);
+        const float deltaSegAngle = static_cast<float>(2.0 * M_PI / segments);
+        uint16_t verticeIndex = 0;
+
+        // Generate the group of rings for the sphere
+        for (uint16_t ringIdx = 0; ringIdx <= rings; ++ringIdx) {
+            float r0 = radius * std::sin(ringIdx * deltaRingAngle);
+            float y0 = radius * std::cos(ringIdx * deltaRingAngle);
+            // Generate the group of segments for the current ring
+            for (uint16_t segIdx = 0; segIdx <= segments; ++segIdx) {
+                float x0 = r0 * std::sin(segIdx * deltaSegAngle);
+                float z0 = r0 * std::cos(segIdx * deltaSegAngle);
+
+                VertexData vertex;
+                vertex.position = Ogre::Vector4(x0, y0, z0, 1.0f);
+                vertex.normal = Ogre::Vector4(Ogre::Vector3(x0, y0, z0).normalisedCopy());
+                sphere.vertexes.push_back(vertex);
+
+                if (ringIdx != rings) {
+                    // each vertex (except the last) has six indicies pointing to it
+                    sphere.indexes.push_back(verticeIndex + segments + 1);
+                    sphere.indexes.push_back(verticeIndex);
+                    sphere.indexes.push_back(verticeIndex + segments);
+                    sphere.indexes.push_back(verticeIndex + segments + 1);
+                    sphere.indexes.push_back(verticeIndex + 1);
+                    sphere.indexes.push_back(verticeIndex);
+                    ++verticeIndex;
+                }
+            }
+        }
+        return sphere;
     }
 
 public:
@@ -793,6 +842,9 @@ public:
 
         std::cout << "Prepare matrixes...";
         {
+            mDefaultOrientation.FromAngleAxis(Ogre::Radian(-1.0f), Ogre::Vector3::UNIT_Y);
+            mRotationX = Ogre::Quaternion::IDENTITY;
+            mRotationY = Ogre::Quaternion::IDENTITY;
             MakePerspectiveProjectionMatrix(mMatrixes.projection, static_cast<float>(width) / height, 45.0f, 0.01f, 1000.0f);
 
             {
@@ -931,9 +983,9 @@ public:
         cmdBuffer->bindIndexBuffer(mIndexesBuffer, 0, vk::IndexType::eUint16);
 
         // Update matrixes
-        mCurrentOrientation.FromAngleAxis(Ogre::Radian(-1.0f), Ogre::Vector3::UNIT_Y);
         mPosition = Ogre::Vector3(0.0f, 0.0f, -3.0f);
-        mMatrixes.modelView.makeTransform(mPosition, Ogre::Vector3::UNIT_SCALE, mCurrentOrientation);
+        Ogre::Quaternion currentOrientation = mRotationY * mRotationX * mDefaultOrientation;
+        mMatrixes.modelView.makeTransform(mPosition, Ogre::Vector3::UNIT_SCALE, currentOrientation);
         mMatrixes.modelView = mMatrixes.modelView.transpose();
 
         uint8_t* devicePtr = static_cast<uint8_t*>(mDevice->mapMemory(mMatrixesMemory, 0, sizeof(mMatrixes)));
@@ -998,6 +1050,29 @@ public:
         return true;
     }
 
+    void OnMouseEvent(ApiWithoutSecrets::OS::MouseEvent event, int x, int y) override
+    {
+        switch (event) {
+        case ApiWithoutSecrets::OS::MouseEvent::Down:
+            mMousePosition = Ogre::Vector2(static_cast<float>(x), static_cast<float>(y));
+            mIsMouseDown = true;
+            break;
+        case ApiWithoutSecrets::OS::MouseEvent::Move:
+            if (mIsMouseDown) {
+                Ogre::Vector2 newPos = Ogre::Vector2(static_cast<float>(x), static_cast<float>(y));
+                mRotationX.FromAngleAxis(Ogre::Radian((newPos.x - mMousePosition.x) / 180.0f), Ogre::Vector3::UNIT_Y);
+                mRotationY.FromAngleAxis(-Ogre::Radian((newPos.y - mMousePosition.y) / 180.0f), Ogre::Vector3::UNIT_X);
+            }
+            break;
+        case ApiWithoutSecrets::OS::MouseEvent::Up:
+            mDefaultOrientation = mRotationY * mRotationX * mDefaultOrientation;
+            mRotationX = Ogre::Quaternion::IDENTITY;
+            mRotationY = Ogre::Quaternion::IDENTITY;
+            mIsMouseDown = false;
+            break;
+        }
+    }
+
     void Shutdown() override
     {
         if (*mDevice) {
@@ -1018,6 +1093,7 @@ int main()
 
         // Render loop
         Sample_03_Window application(window.GetParameters(), 512, 512);
+        window.SetMouseListener(&application);
         if (!window.RenderingLoop(application)) {
             return -1;
         }

@@ -12,6 +12,12 @@
 #include <chrono>
 #include "OperatingSystem.h"
 
+namespace
+{
+    ApiWithoutSecrets::OS::MouseListener* globalMouseListener = nullptr;
+}
+
+
 namespace ApiWithoutSecrets {
 
   namespace OS {
@@ -22,6 +28,11 @@ namespace ApiWithoutSecrets {
 
     WindowParameters Window::GetParameters() const {
       return Parameters;
+    }
+
+    void Window::SetMouseListener(MouseListener * listener)
+    {
+        globalMouseListener = listener;
     }
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
@@ -38,6 +49,21 @@ namespace ApiWithoutSecrets {
       case WM_CLOSE:
         PostMessage( hWnd, WM_USER + 2, wParam, lParam );
         break;
+      case WM_LBUTTONDOWN:
+          if (globalMouseListener != nullptr) {
+              globalMouseListener->OnMouseEvent(MouseEvent::Down, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+          }
+          break;
+      case WM_LBUTTONUP:
+          if (globalMouseListener != nullptr) {
+              globalMouseListener->OnMouseEvent(MouseEvent::Up, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+          }
+          break;
+      case WM_MOUSEMOVE:
+          if (globalMouseListener != nullptr) {
+              globalMouseListener->OnMouseEvent(MouseEvent::Move, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+          }
+          break;
       default:
         return DefWindowProc( hWnd, message, wParam, lParam );
       }

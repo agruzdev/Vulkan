@@ -93,3 +93,13 @@ Shaders implement simple diffuse shading in screen space
 Example:
 
 ![07_SimpleShading](./images/07.png)
+
+#### 08_InteractiveCube
+
+Renders simple cube, which can be rotated by mouse. This sample shows how to compute proper ModelView and Projection matrixes
+and pass them to vertex shader as uniform buffers in runtime.
+
+Example:
+
+![08_InteractiveCube](./images/08.png)
+

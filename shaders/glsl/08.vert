@@ -27,7 +27,8 @@ layout(location = 0) out vec4 outPosition;
 layout(location = 1) out vec4 outNormal;
 
 void main() {
-    outNormal = inNormal;
+    mat4 normalMatrix = transpose(inverse(matrixes.modelView));
+    outNormal   = normalize(normalMatrix * inNormal);
     outPosition = matrixes.modelView * inPosition;
     gl_Position = matrixes.projection * outPosition;
 }

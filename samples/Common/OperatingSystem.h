@@ -13,6 +13,7 @@
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 #include <Windows.h>
+#include <Windowsx.h>
 
 #elif defined(VK_USE_PLATFORM_XCB_KHR)
 #include <xcb/xcb.h>
@@ -110,6 +111,27 @@ namespace ApiWithoutSecrets {
 #endif
     };
 
+
+    enum class MouseEvent
+    {
+        Down,
+        Move, 
+        Up
+    };
+
+    // ************************************************************ //
+    // Window                                                       //
+    //                                                              //
+    // Interface for processing mouse events                        //
+    // ************************************************************ //
+    class MouseListener {
+    public:
+        virtual ~MouseListener() = default;
+
+        virtual void OnMouseEvent(MouseEvent event, int x, int y) = 0;
+    };
+
+
     // ************************************************************ //
     // Window                                                       //
     //                                                              //
@@ -123,6 +145,8 @@ namespace ApiWithoutSecrets {
       bool              Create( const char *title, uint32_t width, uint32_t height );
       bool              RenderingLoop( TutorialBase &tutorial ) const;
       WindowParameters  GetParameters() const;
+
+      void SetMouseListener(MouseListener * listener);
 
     private:
       WindowParameters  Parameters;
