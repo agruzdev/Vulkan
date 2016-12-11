@@ -924,7 +924,7 @@ public:
             return false;
         }
 
-        // Preapare command buffer
+        // Prepare command buffer
         auto& cmdBuffer = renderingResource.commandBuffer;
         vk::CommandBufferBeginInfo beginInfo;
         beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
