@@ -261,4 +261,59 @@ std::vector<char> GetBinaryFileContents(const std::string & filename)
 }
 
 
+struct RgbaImage
+{
+    uint32_t width;
+    uint32_t height;
+    std::vector<uint8_t> pixels;
+};
+
+#ifdef _MSC_VER
+# pragma warning(push)
+# pragma warning(disable: 4996)
+#endif
+inline
+RgbaImage LoadBmpImage(const std::string & filename)
+{
+    RgbaImage image = { 0, 0, {} };
+
+    FILE* f = fopen(filename.c_str(), "rb");
+
+    if (f == NULL) {
+        std::cout << "Invalid input file" << std::endl;
+        return image;
+    }
+
+    unsigned char info[54];
+    fread(info, sizeof(unsigned char), 54, f); // read the 54-byte header
+
+    // extract image height and width from header
+    image.width  = *reinterpret_cast<uint32_t*>(&info[18]);
+    image.height = *reinterpret_cast<uint32_t*>(&info[22]);
+
+    int row_padded = (image.width * 3 + 3) & (~3);
+    image.pixels.resize(image.width * image.height * 4);
+    uint8_t* dstLine = &image.pixels[0];
+
+    std::vector<uint8_t> row(row_padded);
+    for (uint32_t i = 0; i < image.height; i++, dstLine += image.width * 4) {
+        fread(&row[0], sizeof(unsigned char), row_padded, f);
+
+        int iSrc = 0;
+        int iDst = 0;
+        for (uint32_t j = 0; j < image.width; ++j, iSrc += 3, iDst += 4) {
+            // Convert (B, G, R) to (R, G, B)
+            dstLine[iDst + 0] = row[iSrc + 2];
+            dstLine[iDst + 1] = row[iSrc + 1];
+            dstLine[iDst + 2] = row[iSrc + 0];
+            dstLine[iDst + 3] = 255;
+        }
+    }
+    fclose(f);
+    return image;
+}
+#ifdef _MSC_VER
+# pragma warning(pop)
+#endif
+
 #endif

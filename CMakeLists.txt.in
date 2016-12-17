@@ -14,6 +14,7 @@ include_directories(@COMMON_INCLUDES@)
 add_definitions("/DVK_PROTOTYPES")
 add_definitions("/DVK_USE_PLATFORM_WIN32_KHR")
 add_definitions("/DSHADERS_DIR=${SHADERS_DIR}")
+add_definitions("/DRESOURCES_DIR=${RESOURCES_DIR}")
 
 add_executable(@CONF_NAME@ ${source})
 

@@ -103,3 +103,13 @@ Example:
 
 ![08_InteractiveCube](./images/08.png)
 
+
+#### 09_Texture
+
+Adds texture to the interactive cube. Shows how to load pixel data to host visible image and transfer it to GPU image.
+Creates texture sampler and adds it to descriptor set
+
+Example:
+
+![09_Texture](./images/09.png)
+

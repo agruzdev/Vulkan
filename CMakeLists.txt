@@ -36,6 +36,7 @@ if(NOT EXISTS ${VULKAN_LIBRARY})
 endif()
 
 set(SHADERS_DIR "${CMAKE_SOURCE_DIR}/shaders")
+set(RESOURCES_DIR "${CMAKE_SOURCE_DIR}/res")
 
 set(COMMON_DIR ${CMAKE_SOURCE_DIR}/samples/Common)
 list(APPEND COMMON_INCLUDES ${COMMON_DIR})
@@ -50,4 +51,6 @@ add_snippet(05_SimpleTriangle   ${CMAKE_SOURCE_DIR}/samples/05_SimpleTriangle   
 add_snippet(06_AdvancedQuad     ${CMAKE_SOURCE_DIR}/samples/06_AdvancedQuad     ON)
 add_snippet(07_SimpleShading    ${CMAKE_SOURCE_DIR}/samples/07_SimpleShading    ON)
 add_snippet(08_InteractiveCube  ${CMAKE_SOURCE_DIR}/samples/08_InteractiveCube  ON)
+add_snippet(09_Texture          ${CMAKE_SOURCE_DIR}/samples/09_Texture          ON)
+
 
