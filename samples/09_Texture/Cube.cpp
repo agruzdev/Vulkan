@@ -56,6 +56,7 @@ class Sample_03_Window
         VulkanHolder<vk::Semaphore> semaphoreAvailable;
         VulkanHolder<vk::Semaphore> semaphoreFinished;
         VulkanHolder<vk::Fence> fence;
+        bool undefinedLaout;
     };
 
     VulkanHolder<vk::Instance> mVulkan;
@@ -1077,6 +1078,8 @@ public:
             vk::FenceCreateInfo fenceInfo;
             fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
             resource.fence = MakeHolder(mDevice->createFence(fenceInfo), [this](vk::Fence & fence) { mDevice->destroyFence(fence); });
+
+            resource.undefinedLaout = true;
         }
 
         mRenderingResourceIter = mRenderingResources.begin();
@@ -1166,21 +1169,20 @@ public:
             barrierFromTransDstToSampler.image = mTextureImage;
             barrierFromTransDstToSampler.subresourceRange = range;
             cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromTransDstToSampler);
-
-            mFirstDraw = false;
         }
 
-        if (mQueueFamilyPresent != mQueueFamilyGraphics) {
+        if (renderingResource.undefinedLaout || mQueueFamilyPresent != mQueueFamilyGraphics) {
             vk::ImageMemoryBarrier barrierFromPresentToDraw;
             barrierFromPresentToDraw.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
             barrierFromPresentToDraw.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
-            barrierFromPresentToDraw.oldLayout = vk::ImageLayout::ePresentSrcKHR;
+            barrierFromPresentToDraw.oldLayout = renderingResource.undefinedLaout ? vk::ImageLayout::eUndefined : vk::ImageLayout::ePresentSrcKHR;
             barrierFromPresentToDraw.newLayout = vk::ImageLayout::ePresentSrcKHR;
             barrierFromPresentToDraw.srcQueueFamilyIndex = mQueueFamilyPresent;
             barrierFromPresentToDraw.dstQueueFamilyIndex = mQueueFamilyGraphics;
             barrierFromPresentToDraw.image = renderingResource.imageHandle;
             barrierFromPresentToDraw.subresourceRange = range;
             cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPresentToDraw);
+            renderingResource.undefinedLaout = false;
         }
 
         vk::ClearColorValue targetColor = std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f };
@@ -1271,6 +1273,7 @@ public:
         if (mRenderingResourceIter == mRenderingResources.end()) {
             mRenderingResourceIter = mRenderingResources.begin();
         }
+        mFirstDraw = false;
         return true;
     }
 
