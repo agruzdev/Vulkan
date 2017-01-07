@@ -113,3 +113,15 @@ Example:
 
 ![09_Texture](./images/09.png)
 
+
+
+## Compute Samples
+
+#### 10_ComputePipeline
+
+First compute sample. Shows how to create simplest compute pipeline and compute shader.
+The compute shader takes input array of 1024 integers, increments the each one, and stores to the output array
+
+Example:
+
+![10_ComputePipeline](./images/10.png)

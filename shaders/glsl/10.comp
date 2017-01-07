@@ -1,0 +1,17 @@
+#version 450
+
+layout(local_size_x = 1, local_size_y = 1) in;
+layout(std430) buffer;
+
+layout(set = 0, binding = 0) buffer inData {
+    int inBuffer[];
+};
+
+layout(set = 0, binding = 1) buffer outData {
+    int outBuffer[];
+};
+
+void main() {
+    int value = inBuffer[gl_GlobalInvocationID.x];
+    outBuffer[gl_GlobalInvocationID.x] = value + 1;
+}
