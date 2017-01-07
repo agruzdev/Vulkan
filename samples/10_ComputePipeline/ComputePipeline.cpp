@@ -1,10 +1,6 @@
 /**
 * Vulkan samples
 *
-* CommandBuffers
-* Creates few command buffers on the first device and first command queue
-* Only to show and debug code for buffers allocation
-*
 * The MIT License (MIT)
 * Copyright (c) 2016 Alexey Gruzdev
 */

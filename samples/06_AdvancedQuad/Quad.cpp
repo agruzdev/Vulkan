@@ -1,12 +1,9 @@
 /**
- * Vulkan samples
- * 
- * Context
- * Creates window and clears color
- *
- * The MIT License (MIT)
- * Copyright (c) 2016 Alexey Gruzdev
- */
+* Vulkan samples
+*
+* The MIT License (MIT)
+* Copyright (c) 2016 Alexey Gruzdev
+*/
 
 #include <chrono>
 #include <iostream>
