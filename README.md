@@ -125,3 +125,15 @@ The compute shader takes input array of 1024 integers, increments the each one, 
 Example:
 
 ![10_ComputePipeline](./images/10.png)
+
+
+#### 11_HeatComputation
+
+This sample implements simplest algorithm of heat equation solution.
+There are used two compute pipelines working with textures and images from swapchain.
+Computations are made with waiting for fence, maybe it is not optimal, but much more simple.
+
+Example:
+
+![11_HeatComputation](./images/11.png)
+

@@ -1,0 +1,28 @@
+// Vulkan samples
+// The MIT License (MIT)
+// Copyright (c) 2016 Alexey Gruzdev
+
+#version 450
+
+layout(local_size_x = 1, local_size_y = 1) in;
+
+layout(set = 0, binding = 2, r32f) uniform image2D prevBuffer;
+layout(set = 0, binding = 3, r32f) uniform image2D nextBuffer;
+
+void main() {
+    ivec2 coord = ivec2(gl_GlobalInvocationID.x + 1, gl_GlobalInvocationID.y + 1); // shifted by 1 because borders are fixed
+
+    const float hx = 0.25; // inv
+    const float hy = 0.25;
+    const float a = 0.98;
+
+    float uC = imageLoad(prevBuffer, coord).r;
+    float uL = imageLoad(prevBuffer, coord + ivec2(-1,  0)).r;
+    float uR = imageLoad(prevBuffer, coord + ivec2( 1,  0)).r;
+    float uT = imageLoad(prevBuffer, coord + ivec2( 0, -1)).r;
+    float uB = imageLoad(prevBuffer, coord + ivec2( 0,  1)).r;
+
+    float res = a * (hx * (uL - 2.0 * uC + uR) + hy * (uT - 2.0 * uC + uB)) + uC;
+
+    imageStore(nextBuffer, coord, vec4(max(res, 0)));
+}
