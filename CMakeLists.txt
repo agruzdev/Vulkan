@@ -52,6 +52,7 @@ add_snippet(06_AdvancedQuad     ${CMAKE_SOURCE_DIR}/samples/06_AdvancedQuad     
 add_snippet(07_SimpleShading    ${CMAKE_SOURCE_DIR}/samples/07_SimpleShading    ON)
 add_snippet(08_InteractiveCube  ${CMAKE_SOURCE_DIR}/samples/08_InteractiveCube  ON)
 add_snippet(09_Texture          ${CMAKE_SOURCE_DIR}/samples/09_Texture          ON)
+add_snippet(12_Animation        ${CMAKE_SOURCE_DIR}/samples/12_Animation        ON)
 
 add_snippet(10_ComputePipeline  ${CMAKE_SOURCE_DIR}/samples/10_ComputePipeline  ON)
 add_snippet(11_HeatComputation  ${CMAKE_SOURCE_DIR}/samples/11_HeatComputation  ON)

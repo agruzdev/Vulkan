@@ -114,6 +114,17 @@ Example:
 ![09_Texture](./images/09.png)
 
 
+#### 12_Animation
+
+Example of using push constatns in order to quickly update shader parameters.
+This sample loads texture with a map of frames and plays animation, using push constatns for updating texture coordinates for the current frame
+
+Example:
+
+![12_Animation](./images/12.png)
+
+*Animation and character belongs to [The Walt Disney Company](https://en.wikipedia.org/wiki/Mickey_Mouse)*
+
 
 ## Compute Samples
 
