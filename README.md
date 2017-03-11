@@ -126,6 +126,18 @@ Example:
 *Animation and character belongs to [The Walt Disney Company](https://en.wikipedia.org/wiki/Mickey_Mouse)*
 
 
+#### 13_GeometryShader
+
+More complicated example with two drawing batches anad using geometry shader.
+Also it shows how to enable depth testing.
+
+Example:
+
+![13_GeometryShader](./images/13.png)
+
+
+
+
 ## Compute Samples
 
 #### 10_ComputePipeline

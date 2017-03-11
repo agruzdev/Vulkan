@@ -244,7 +244,7 @@ std::vector<char> GetBinaryFileContents(const std::string & filename)
     std::ifstream file(filename, std::ios::binary);
     if (file.fail()) {
         std::cout << "Could not open \"" << filename << "\" file!" << std::endl;
-        return std::vector<char>();
+        return std::vector<char>{};
     }
 
     std::streampos begin, end;
@@ -258,6 +258,18 @@ std::vector<char> GetBinaryFileContents(const std::string & filename)
     file.close();
 
     return result;
+}
+
+
+inline 
+std::vector<char> GetBinaryShaderFromSourceFile(const std::string & filename)
+{
+    const std::string cmd = "glslangValidator.exe -V -o ./tmp_shader.spv \"" + filename + "\"";
+    if (0 != std::system(cmd.c_str())) {
+        std::cout << "Failed to compile \"" << filename << "\"!" << std::endl;
+        return std::vector<char>{};
+    }
+    return GetBinaryFileContents("./tmp_shader.spv");
 }
 
 
