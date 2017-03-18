@@ -54,6 +54,7 @@ add_snippet(08_InteractiveCube  ${CMAKE_SOURCE_DIR}/samples/08_InteractiveCube  
 add_snippet(09_Texture          ${CMAKE_SOURCE_DIR}/samples/09_Texture          ON)
 add_snippet(12_Animation        ${CMAKE_SOURCE_DIR}/samples/12_Animation        ON)
 add_snippet(13_GeometryShader   ${CMAKE_SOURCE_DIR}/samples/13_GeometryShader   ON)
+add_snippet(14_FurRendering     ${CMAKE_SOURCE_DIR}/samples/14_FurRendering     ON)
 
 add_snippet(10_ComputePipeline  ${CMAKE_SOURCE_DIR}/samples/10_ComputePipeline  ON)
 add_snippet(11_HeatComputation  ${CMAKE_SOURCE_DIR}/samples/11_HeatComputation  ON)

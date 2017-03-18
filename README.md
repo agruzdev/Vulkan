@@ -136,6 +136,15 @@ Example:
 ![13_GeometryShader](./images/13.png)
 
 
+#### 14_FurRendering
+
+Experiments with geometrix shader. Implemented simplest way of fur rendering.
+The sample application setups depth proper alpha blending and depth desting with manual sorting of fur emitters
+
+Example:
+
+![14_FurRendering](./images/14.png)
+
 
 
 ## Compute Samples
