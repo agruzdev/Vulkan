@@ -1,0 +1,60 @@
+// Vulkan samples
+// The MIT License (MIT)
+// Copyright (c) 2016 Alexey Gruzdev
+
+#version 450
+precision mediump float;
+
+layout(local_size_x = 32, local_size_y = 32) in;
+layout(std430) buffer;
+
+layout(set = 0, binding = 0) buffer MatrixA {
+    restrict readonly float inMatrixA[];
+};
+
+layout(set = 0, binding = 1) buffer MatrixB {
+    restrict readonly float inMatrixB[]; // transposed
+};
+
+layout(set = 0, binding = 2) buffer MatrixC {
+    restrict writeonly float outMatrixC[];
+};
+
+layout(push_constant) uniform PushConstants {
+    uint cols;
+    uint rows;
+} constants;
+
+const uint BLOCK_SIZE = 32;
+shared float BlockA[BLOCK_SIZE][BLOCK_SIZE];
+shared float BlockB[BLOCK_SIZE][BLOCK_SIZE];
+
+// http://steps3d.narod.ru/tutorials/cuda-tutorial.html
+void main() {
+    const uint tx = gl_LocalInvocationID.x;
+    const uint ty = gl_LocalInvocationID.y;
+
+    // Index of the first sub-matrix of A/B processed by the block
+    const uint aBegin = constants.cols * gl_WorkGroupID.y * BLOCK_SIZE;
+    const uint bBegin = constants.cols * gl_WorkGroupID.x * BLOCK_SIZE;
+    const uint aEnd   = aBegin + constants.cols;
+
+    // computed subelement
+    float sum = 0.0;
+    for(uint ia = aBegin, ib = bBegin; ia < aEnd; ia += BLOCK_SIZE, ib += BLOCK_SIZE)
+    {
+        BlockA[ty][tx] = inMatrixA[ia + constants.cols * ty + tx];
+        BlockB[ty][tx] = inMatrixB[ib + constants.cols * ty + tx];
+
+        barrier();
+
+        for (uint k = 0; k < BLOCK_SIZE; ++k) {
+            sum += BlockA[ty][k] * BlockB[tx][k];
+        }
+
+        barrier();
+    }
+
+    // gl_GlobalInvocationID = gl_WorkGroupID * gl_WorkGroupSize + gl_LocalInvocationID.
+    outMatrixC[gl_GlobalInvocationID.y * constants.rows + gl_GlobalInvocationID.x] = sum;
+}

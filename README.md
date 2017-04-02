@@ -169,3 +169,14 @@ Example:
 
 ![11_HeatComputation](./images/11.png)
 
+
+#### 15_MultiplyMatrix
+
+Compute shader for fast matrix multiplication
+Uses blocky approach from [Steps3D](http://steps3d.narod.ru/tutorials/cuda-tutorial.html)
+
+Example:
+
+![15_MultiplyMatrix](./images/15.png)
+
+
