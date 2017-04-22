@@ -267,12 +267,12 @@ public:
 
         auto surfaceCapabilities = mPhysicalDevice.getSurfaceCapabilitiesKHR(mSurface);
         if (surfaceCapabilities.maxImageCount < 1) {
-            std::runtime_error("Invalid capabilities");
+            throw std::runtime_error("Invalid capabilities");
         }
         // check that image can be used as image2D in compute shaders VK_IMAGE_USAGE_STORAGE_BIT 
         // https://redd.it/5nd7tj
         if (!(surfaceCapabilities.supportedUsageFlags & vk::ImageUsageFlagBits::eStorage)) {
-            std::runtime_error("ImageUsageFlagBits::eStorage is not supported by swapchain");
+            throw std::runtime_error("ImageUsageFlagBits::eStorage is not supported by swapchain");
         }
         //const uint32_t imagesCount = std::min(surfaceCapabilities.minImageCount + 1, surfaceCapabilities.maxImageCount);
         const uint32_t imagesCount = 2;
@@ -285,16 +285,16 @@ public:
         
         auto supportedFormats = mPhysicalDevice.getSurfaceFormatsKHR(mSurface);
         if (supportedFormats.empty()) {
-            std::runtime_error("Failed to get supported surface formats");
+            throw std::runtime_error("Failed to get supported surface formats");
         }
         const auto format = std::make_pair(vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear);
         if (!CheckFormat(supportedFormats, format)) {
-            std::runtime_error("Format BGRA_Unorm/SrgbNonlinear is not supported");
+            throw std::runtime_error("Format BGRA_Unorm/SrgbNonlinear is not supported");
         }
 
         auto presentModes = mPhysicalDevice.getSurfacePresentModesKHR(mSurface);
         if (presentModes.empty()) {
-            std::runtime_error("Failed to get supported surface present modes");
+            throw std::runtime_error("Failed to get supported surface present modes");
         }
 
         //Finally!

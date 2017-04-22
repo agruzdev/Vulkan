@@ -314,7 +314,7 @@ public:
 
         auto surfaceCapabilities = mPhysicalDevice.getSurfaceCapabilitiesKHR(mSurface);
         if (surfaceCapabilities.maxImageCount < 1) {
-            std::runtime_error("Invalid capabilities");
+            throw std::runtime_error("Invalid capabilities");
         }
         const uint32_t imagesCount = std::min(surfaceCapabilities.minImageCount + 1, surfaceCapabilities.maxImageCount);
         vk::Extent2D imageSize = vk::Extent2D(width, height);
@@ -326,16 +326,16 @@ public:
 
         auto supportedFormats = mPhysicalDevice.getSurfaceFormatsKHR(mSurface);
         if (supportedFormats.empty()) {
-            std::runtime_error("Failed to get supported surface formats");
+            throw std::runtime_error("Failed to get supported surface formats");
         }
         const auto format = std::make_pair(vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear);
         if (!CheckFormat(supportedFormats, format)) {
-            std::runtime_error("Format BGRA_Unorm/SrgbNonlinear is not supported");
+            throw std::runtime_error("Format BGRA_Unorm/SrgbNonlinear is not supported");
         }
 
         auto presentModes = mPhysicalDevice.getSurfacePresentModesKHR(mSurface);
         if (presentModes.empty()) {
-            std::runtime_error("Failed to get supported surface present modes");
+            throw std::runtime_error("Failed to get supported surface present modes");
         }
 
         //Finally!
