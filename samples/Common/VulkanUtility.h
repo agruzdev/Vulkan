@@ -264,7 +264,7 @@ std::vector<char> GetBinaryFileContents(const std::string & filename)
 inline 
 std::vector<char> GetBinaryShaderFromSourceFile(const std::string & filename)
 {
-    const std::string cmd = "glslangValidator.exe -V -o ./tmp_shader.spv \"" + filename + "\"";
+    const std::string cmd = "%VULKAN_SDK%/Bin/glslangValidator.exe -V -o ./tmp_shader.spv \"" + filename + "\"";
     if (0 != std::system(cmd.c_str())) {
         std::cout << "Failed to compile \"" << filename << "\"!" << std::endl;
         return std::vector<char>{};

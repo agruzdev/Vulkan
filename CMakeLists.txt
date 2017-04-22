@@ -23,9 +23,9 @@ endif()
 
 set(VULKAN_INCLUDE $ENV{VULKAN_SDK}/Include CACHE PATH "Vulkan include directory")
 if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-    set(VULKAN_LIBRARY $ENV{VULKAN_SDK}/Bin/vulkan-1.lib CACHE PATH "Vulkan library")
+    set(VULKAN_LIBRARY $ENV{VULKAN_SDK}/Lib/vulkan-1.lib CACHE PATH "Vulkan library")
 else()
-    set(VULKAN_LIBRARY $ENV{VULKAN_SDK}/Bin32/vulkan-1.lib CACHE PATH "Vulkan library")
+    set(VULKAN_LIBRARY $ENV{VULKAN_SDK}/Lib32/vulkan-1.lib CACHE PATH "Vulkan library")
 endif()
 
 if(NOT EXISTS ${VULKAN_INCLUDE}/vulkan/vulkan.hpp)
