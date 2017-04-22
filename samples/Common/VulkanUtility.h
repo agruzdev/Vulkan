@@ -20,7 +20,9 @@
 #include <utility>
 
 #define NOMINMAX
-#include <vulkan\vulkan.hpp>
+#pragma warning(push, 0)
+#include <vulkan/vulkan.hpp>
+#pragma warning(pop)
 
 #define Q_IMPL(X) #X
 #define QUOTE(X) Q_IMPL(X)
@@ -222,7 +224,7 @@ void CheckDeviceExtensions(const vk::PhysicalDevice & physDevice, std::vector<co
 }
 
 inline
-boolean CheckFormat(const std::vector<vk::SurfaceFormatKHR> & formats, const std::pair<vk::Format, vk::ColorSpaceKHR> & request)
+bool CheckFormat(const std::vector<vk::SurfaceFormatKHR> & formats, const std::pair<vk::Format, vk::ColorSpaceKHR> & request)
 {
     return (formats.cend() != std::find_if(formats.cbegin(), formats.cend(), [&request](const vk::SurfaceFormatKHR & surfaceFormat) {
         // If the list contains only one entry with undefined format

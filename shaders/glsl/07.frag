@@ -16,6 +16,6 @@ void main() {
     const vec3 lightDir = normalize(Light - vec3(inPosition));
     const float diffuse = clamp(dot(lightDir, vec3(inNormal)), 0.0, 1.0);
 
-    const vec3 rgb = Ambient + diffuse * Color;
+    const vec3 rgb = Ambient + 0.8 * diffuse * Color;
     fragColor = vec4(rgb, 1.0);
 }
