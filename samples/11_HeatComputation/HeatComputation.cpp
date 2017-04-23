@@ -21,8 +21,6 @@ class Sample_03_Window
         vk::Image imageHandle;
         VulkanHolder<vk::ImageView> imageView;
         VulkanHolder<vk::CommandBuffer> commandBuffer;
-        VulkanHolder<vk::Semaphore> semaphoreAvailable;
-        VulkanHolder<vk::Semaphore> semaphoreFinished;
         VulkanHolder<vk::Fence> fence;
         VulkanHolder<vk::DescriptorSet> descriptorSet;
         bool undefinedLaout;
@@ -67,7 +65,6 @@ class Sample_03_Window
     VulkanHolder<vk::DeviceMemory> mInitialImageMemory;
 
     std::vector<RenderingResource> mRenderingResources;
-    decltype(mRenderingResources)::iterator mRenderingResourceIter;
 
     vk::PhysicalDevice mPhysicalDevice;
     vk::Queue mCommandQueue;
@@ -77,6 +74,9 @@ class Sample_03_Window
 
     vk::Extent2D mFramebufferExtents;
     vk::Extent2D mComputeImageExtents;
+
+    VulkanHolder<vk::Semaphore> mSemaphoreAvailable;
+    VulkanHolder<vk::Semaphore> mSemaphoreFinished;
 
     bool mFirstDraw = true;
 
@@ -642,9 +642,6 @@ public:
 
             mRenderingResources[i].imageView = MakeHolder(mDevice->createImageView(imageViewInfo), [this](vk::ImageView & view) { mDevice->destroyImageView(view); });
 
-            mRenderingResources[i].semaphoreAvailable = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
-            mRenderingResources[i].semaphoreFinished  = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
-
             vk::FenceCreateInfo fenceInfo;
             fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
             mRenderingResources[i].fence = MakeHolder(mDevice->createFence(fenceInfo), [this](vk::Fence & fence) { mDevice->destroyFence(fence); });
@@ -691,7 +688,10 @@ public:
             mDevice->updateDescriptorSets(static_cast<uint32_t>(writeDescriptorsInfo.size()), &writeDescriptorsInfo[0], 0, nullptr);
         }
 
-        mRenderingResourceIter = mRenderingResources.begin();
+
+        mSemaphoreAvailable = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
+        mSemaphoreFinished  = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
+
         CanRender = true;
     }
 
@@ -703,15 +703,16 @@ public:
     bool Draw() override
     {
         constexpr uint64_t TIMEOUT = 1 * 1000 * 1000 * 1000; // 1 second in nanos
-        auto & renderingResource = *mRenderingResourceIter;
 
-        mDevice->resetFences(1, renderingResource.fence.get());
-
-        auto imageIdx = mDevice->acquireNextImageKHR(mSwapChain, TIMEOUT, renderingResource.semaphoreAvailable, nullptr);
+        auto imageIdx = mDevice->acquireNextImageKHR(mSwapChain, TIMEOUT, mSemaphoreAvailable, nullptr);
         if (imageIdx.result != vk::Result::eSuccess) {
             std::cout << "Failed to acquire image! Stoppping." << std::endl;
             return false;
         }
+
+        auto & renderingResource = mRenderingResources[imageIdx.value];
+
+        mDevice->resetFences(1, renderingResource.fence.get());
 
         // Preapare command buffer
         auto& cmdBuffer = renderingResource.commandBuffer;
@@ -886,11 +887,11 @@ public:
         vk::SubmitInfo submitInfo;
         submitInfo.pWaitDstStageMask = &waitDstStageMask;
         submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = renderingResource.semaphoreAvailable.get();
+        submitInfo.pWaitSemaphores = mSemaphoreAvailable.get();
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = renderingResource.commandBuffer.get();
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = renderingResource.semaphoreFinished.get();
+        submitInfo.pSignalSemaphores = mSemaphoreFinished.get();
         if (vk::Result::eSuccess != mCommandQueue.submit(1, &submitInfo, renderingResource.fence)) {
             std::cout << "Failed to submit command! Stoppping." << std::endl;
             return false;
@@ -898,7 +899,7 @@ public:
 
         vk::PresentInfoKHR presentInfo;
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = renderingResource.semaphoreFinished.get();
+        presentInfo.pWaitSemaphores = mSemaphoreFinished.get();
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = mSwapChain.get();
         presentInfo.pImageIndices = &imageIdx.value;
@@ -917,10 +918,6 @@ public:
             return false;
         }
 
-        ++mRenderingResourceIter;
-        if (mRenderingResourceIter == mRenderingResources.end()) {
-            mRenderingResourceIter = mRenderingResources.begin();
-        }
         mNextComputeResIdx = 1 - mNextComputeResIdx;
         mFirstDraw = false;
         return true;

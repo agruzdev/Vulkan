@@ -51,8 +51,6 @@ class Sample_03_Window
         VulkanHolder<vk::CommandBuffer> commandBuffer;
         VulkanHolder<vk::ImageView> imageView;
         VulkanHolder<vk::Framebuffer> framebuffer;
-        VulkanHolder<vk::Semaphore> semaphoreAvailable;
-        VulkanHolder<vk::Semaphore> semaphoreFinished;
         VulkanHolder<vk::Fence> fence;
         bool undefinedLaout;
     };
@@ -99,7 +97,6 @@ class Sample_03_Window
     VulkanHolder<vk::CommandPool> mCommandPool;
 
     std::vector<RenderingResource> mRenderingResources;
-    decltype(mRenderingResources)::iterator mRenderingResourceIter;
 
     vk::PhysicalDevice mPhysicalDevice;
     vk::Queue mCommandQueue;
@@ -108,6 +105,9 @@ class Sample_03_Window
     uint32_t mQueueFamilyPresent = std::numeric_limits<uint32_t>::max();
 
     vk::Extent2D mFramebufferExtents;
+
+    VulkanHolder<vk::Semaphore> mSemaphoreAvailable;
+    VulkanHolder<vk::Semaphore> mSemaphoreFinished;
 
     VertexUniformBuffer mMatrixes;
     Ogre::Vector3 mPosition;
@@ -882,9 +882,9 @@ public:
 
             vk::PipelineRasterizationStateCreateInfo rasterizationInfo;
             rasterizationInfo.setDepthClampEnable(VK_FALSE);
-            rasterizationInfo.setCullMode(vk::CullModeFlagBits::eFront);
+            rasterizationInfo.setCullMode(vk::CullModeFlagBits::eBack);
             rasterizationInfo.setPolygonMode(vk::PolygonMode::eFill);
-            rasterizationInfo.setFrontFace(vk::FrontFace::eCounterClockwise);
+            rasterizationInfo.setFrontFace(vk::FrontFace::eClockwise);
             rasterizationInfo.setLineWidth(1.0f);
 
             vk::PipelineDepthStencilStateCreateInfo depthStencilInfo;
@@ -1273,15 +1273,15 @@ public:
 
         // Preparing sync resources
         for (auto & resource : mRenderingResources) {
-            resource.semaphoreAvailable = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
-            resource.semaphoreFinished = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
-
             vk::FenceCreateInfo fenceInfo;
             fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
             resource.fence = MakeHolder(mDevice->createFence(fenceInfo), [this](vk::Fence & fence) { mDevice->destroyFence(fence); });
 
             resource.undefinedLaout = true;
         }
+
+        mSemaphoreAvailable = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
+        mSemaphoreFinished  = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
 
         // Setup passses
         {
@@ -1305,7 +1305,6 @@ public:
             mFurPasses.push_back(pass);
         }
 
-        mRenderingResourceIter = mRenderingResources.begin();
         CanRender = true;
     }
 
@@ -1317,19 +1316,20 @@ public:
     bool Draw() override
     {
         constexpr uint64_t TIMEOUT = 1 * 1000 * 1000 * 1000; // 1 second in nanos
-        auto & renderingResource = *mRenderingResourceIter;
+
+        auto imageIdx = mDevice->acquireNextImageKHR(mSwapChain, TIMEOUT, mSemaphoreAvailable, nullptr);
+        if (imageIdx.result != vk::Result::eSuccess) {
+            std::cout << "Failed to acquire image! Stoppping." << std::endl;
+            return false;
+        }
+
+        auto & renderingResource = mRenderingResources[imageIdx.value];
 
         if (vk::Result::eSuccess != mDevice->waitForFences(1, renderingResource.fence.get(), VK_FALSE, TIMEOUT)) {
             std::cout << "Waiting for fence takes too long!" << std::endl;
             return false;
         }
         mDevice->resetFences(1, renderingResource.fence.get());
-
-        auto imageIdx = mDevice->acquireNextImageKHR(mSwapChain, TIMEOUT, renderingResource.semaphoreAvailable, nullptr);
-        if (imageIdx.result != vk::Result::eSuccess) {
-            std::cout << "Failed to acquire image! Stoppping." << std::endl;
-            return false;
-        }
 
         // Prepare command buffer
         auto& cmdBuffer = renderingResource.commandBuffer;
@@ -1412,19 +1412,19 @@ public:
             cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromTransDstToSampler);
         }
 
-        if (renderingResource.undefinedLaout || mQueueFamilyPresent != mQueueFamilyGraphics) {
-            vk::ImageMemoryBarrier barrierFromPresentToDraw;
-            barrierFromPresentToDraw.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
-            barrierFromPresentToDraw.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
-            barrierFromPresentToDraw.oldLayout = renderingResource.undefinedLaout ? vk::ImageLayout::eUndefined : vk::ImageLayout::ePresentSrcKHR;
-            barrierFromPresentToDraw.newLayout = vk::ImageLayout::ePresentSrcKHR;
-            barrierFromPresentToDraw.srcQueueFamilyIndex = mQueueFamilyPresent;
-            barrierFromPresentToDraw.dstQueueFamilyIndex = mQueueFamilyGraphics;
-            barrierFromPresentToDraw.image = renderingResource.imageHandle;
-            barrierFromPresentToDraw.subresourceRange = range;
-            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPresentToDraw);
-            renderingResource.undefinedLaout = false;
-        }
+
+        vk::ImageMemoryBarrier barrierFromPresentToDraw;
+        barrierFromPresentToDraw.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+        barrierFromPresentToDraw.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+        barrierFromPresentToDraw.oldLayout = renderingResource.undefinedLaout ? vk::ImageLayout::eUndefined : vk::ImageLayout::ePresentSrcKHR;
+        barrierFromPresentToDraw.newLayout = vk::ImageLayout::ePresentSrcKHR;
+        barrierFromPresentToDraw.srcQueueFamilyIndex = mQueueFamilyPresent;
+        barrierFromPresentToDraw.dstQueueFamilyIndex = mQueueFamilyGraphics;
+        barrierFromPresentToDraw.image = renderingResource.imageHandle;
+        barrierFromPresentToDraw.subresourceRange = range;
+        cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPresentToDraw);
+        renderingResource.undefinedLaout = false;
+        
 
         vk::ClearColorValue targetColor = std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f };
         std::array<vk::ClearValue, 2> clearValues;
@@ -1488,18 +1488,17 @@ public:
 
         cmdBuffer->endRenderPass();
 
-        if (mQueueFamilyPresent != mQueueFamilyGraphics) {
-            vk::ImageMemoryBarrier barrierFromDrawToPresent;
-            barrierFromDrawToPresent.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
-            barrierFromDrawToPresent.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
-            barrierFromDrawToPresent.oldLayout = vk::ImageLayout::ePresentSrcKHR;
-            barrierFromDrawToPresent.newLayout = vk::ImageLayout::ePresentSrcKHR;
-            barrierFromDrawToPresent.srcQueueFamilyIndex = mQueueFamilyGraphics;
-            barrierFromDrawToPresent.dstQueueFamilyIndex = mQueueFamilyPresent;
-            barrierFromDrawToPresent.image = renderingResource.imageHandle;
-            barrierFromDrawToPresent.subresourceRange = range;
-            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromDrawToPresent);
-        }
+        vk::ImageMemoryBarrier barrierFromDrawToPresent;
+        barrierFromDrawToPresent.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+        barrierFromDrawToPresent.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
+        barrierFromDrawToPresent.oldLayout = vk::ImageLayout::ePresentSrcKHR;
+        barrierFromDrawToPresent.newLayout = vk::ImageLayout::ePresentSrcKHR;
+        barrierFromDrawToPresent.srcQueueFamilyIndex = mQueueFamilyGraphics;
+        barrierFromDrawToPresent.dstQueueFamilyIndex = mQueueFamilyPresent;
+        barrierFromDrawToPresent.image = renderingResource.imageHandle;
+        barrierFromDrawToPresent.subresourceRange = range;
+        cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromDrawToPresent);
+        
         cmdBuffer->end();
 
         // Submit
@@ -1508,11 +1507,11 @@ public:
         vk::SubmitInfo submitInfo;
         submitInfo.pWaitDstStageMask = &waitDstStageMask;
         submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = renderingResource.semaphoreAvailable.get();
+        submitInfo.pWaitSemaphores = mSemaphoreAvailable.get();
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = renderingResource.commandBuffer.get();
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = renderingResource.semaphoreFinished.get();
+        submitInfo.pSignalSemaphores = mSemaphoreFinished.get();
         if (vk::Result::eSuccess != mCommandQueue.submit(1, &submitInfo, renderingResource.fence)) {
             std::cout << "Failed to submit command! Stoppping." << std::endl;
             return false;
@@ -1520,7 +1519,7 @@ public:
 
         vk::PresentInfoKHR presentInfo;
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = renderingResource.semaphoreFinished.get();
+        presentInfo.pWaitSemaphores = mSemaphoreFinished.get();
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = mSwapChain.get();
         presentInfo.pImageIndices = &imageIdx.value;
@@ -1530,10 +1529,6 @@ public:
             return false;
         }
 
-        ++mRenderingResourceIter;
-        if (mRenderingResourceIter == mRenderingResources.end()) {
-            mRenderingResourceIter = mRenderingResources.begin();
-        }
         mFirstDraw = false;
         return true;
     }

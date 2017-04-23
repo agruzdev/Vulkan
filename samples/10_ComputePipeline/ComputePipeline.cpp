@@ -10,8 +10,6 @@
 #include <vector>
 #include <iterator>
 
-#include <vulkan\vulkan.hpp>
-
 #include <VulkanUtility.h>
 
 int main()
@@ -28,8 +26,6 @@ int main()
 #ifndef NDEBUG
             VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
 #endif
-            VK_KHR_SURFACE_EXTENSION_NAME,
-            VK_KHR_WIN32_SURFACE_EXTENSION_NAME
         };
         std::cout << "Check extensions...";
         CheckExtensions(extensions);

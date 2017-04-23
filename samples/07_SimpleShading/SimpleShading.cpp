@@ -563,9 +563,9 @@ public:
 
             vk::PipelineRasterizationStateCreateInfo rasterizationInfo;
             rasterizationInfo.setDepthClampEnable(VK_FALSE);
-            rasterizationInfo.setCullMode(vk::CullModeFlagBits::eFront); // Due to screenspace vertex coordinatex?
+            rasterizationInfo.setCullMode(vk::CullModeFlagBits::eBack);
             rasterizationInfo.setPolygonMode(vk::PolygonMode::eFill);
-            rasterizationInfo.setFrontFace(vk::FrontFace::eCounterClockwise);
+            rasterizationInfo.setFrontFace(vk::FrontFace::eClockwise);
             rasterizationInfo.setLineWidth(1.0f);
 
             vk::PipelineMultisampleStateCreateInfo multisampleInfo;

@@ -50,8 +50,6 @@ class Sample_03_Window
         VulkanHolder<vk::CommandBuffer> commandBuffer;
         VulkanHolder<vk::ImageView> imageView;
         VulkanHolder<vk::Framebuffer> framebuffer;
-        VulkanHolder<vk::Semaphore> semaphoreAvailable;
-        VulkanHolder<vk::Semaphore> semaphoreFinished;
         VulkanHolder<vk::Fence> fence;
         bool undefinedLaout;
     };
@@ -92,7 +90,6 @@ class Sample_03_Window
     VulkanHolder<vk::CommandPool> mCommandPool;
 
     std::vector<RenderingResource> mRenderingResources;
-    decltype(mRenderingResources)::iterator mRenderingResourceIter;
 
     vk::PhysicalDevice mPhysicalDevice;
     vk::Queue mCommandQueue;
@@ -101,6 +98,9 @@ class Sample_03_Window
     uint32_t mQueueFamilyPresent  = std::numeric_limits<uint32_t>::max();
 
     vk::Extent2D mFramebufferExtents;
+
+    VulkanHolder<vk::Semaphore> mSemaphoreAvailable;
+    VulkanHolder<vk::Semaphore> mSemaphoreFinished;
 
     VertexUniformBuffer mMatrixes;
     Ogre::Vector3 mPosition;
@@ -122,32 +122,6 @@ class Sample_03_Window
     VulkanHolder<vk::Sampler> mTextureSampler;
 
     bool mFirstDraw = true;
-
-    static void MakePerspectiveProjectionMatrix(Ogre::Matrix4 & dst, const float aspectRatio, const float fieldOfView, const float nearClip, const float farClip)
-    {
-        const float f = 1.0f / std::tan(fieldOfView * 0.5f * 0.01745329251994329576923690768489f);
-
-        dst[0][0] = f / aspectRatio;
-        dst[0][1] = 0.0f;
-        dst[0][2] = 0.0f;
-        dst[0][3] = 0.0f;
-
-        dst[1][0] = 0.0f;
-        dst[1][1] = f;
-        dst[1][2] = 0.0f;
-        dst[1][3] = 0.0f;
-
-        dst[2][0] = 0.0f;
-        dst[2][1] = 0.0f;
-        dst[2][2] = -1.0f / (farClip - nearClip);
-        dst[2][3] = -1.0f;
-
-        dst[3][0] =  0.0f;
-        dst[3][1] =  0.0f;
-        dst[3][2] = nearClip / (farClip - nearClip);
-        dst[3][3] =  0.0f;
-    }
-
 
     static Mesh GenerateQuad(const float size)
     {
@@ -1049,9 +1023,6 @@ public:
 
         // Preparing sync resources
         for (auto & resource : mRenderingResources) {
-            resource.semaphoreAvailable = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
-            resource.semaphoreFinished  = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
-
             vk::FenceCreateInfo fenceInfo;
             fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
             resource.fence = MakeHolder(mDevice->createFence(fenceInfo), [this](vk::Fence & fence) { mDevice->destroyFence(fence); });
@@ -1059,7 +1030,9 @@ public:
             resource.undefinedLaout = true;
         }
 
-        mRenderingResourceIter = mRenderingResources.begin();
+        mSemaphoreAvailable = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
+        mSemaphoreFinished  = MakeHolder(mDevice->createSemaphore(vk::SemaphoreCreateInfo()), [this](vk::Semaphore & sem) { mDevice->destroySemaphore(sem); });
+
         CanRender = true;
     }
 
@@ -1071,19 +1044,20 @@ public:
     bool Draw() override
     {
         constexpr uint64_t TIMEOUT = 1 * 1000 * 1000 * 1000; // 1 second in nanos
-        auto & renderingResource = *mRenderingResourceIter;
+       
+        auto imageIdx = mDevice->acquireNextImageKHR(mSwapChain, TIMEOUT, mSemaphoreAvailable, nullptr);
+        if (imageIdx.result != vk::Result::eSuccess) {
+            std::cout << "Failed to acquire image! Stoppping." << std::endl;
+            return false;
+        }
+
+        auto & renderingResource = mRenderingResources[imageIdx.value];
 
         if (vk::Result::eSuccess != mDevice->waitForFences(1, renderingResource.fence.get(), VK_FALSE, TIMEOUT)) {
             std::cout << "Waiting for fence takes too long!" << std::endl;
             return false;
         }
         mDevice->resetFences(1, renderingResource.fence.get());
-
-        auto imageIdx = mDevice->acquireNextImageKHR(mSwapChain, TIMEOUT, renderingResource.semaphoreAvailable, nullptr);
-        if (imageIdx.result != vk::Result::eSuccess) {
-            std::cout << "Failed to acquire image! Stoppping." << std::endl;
-            return false;
-        }
 
         // Prepare command buffer
         auto& cmdBuffer = renderingResource.commandBuffer;
@@ -1148,19 +1122,19 @@ public:
             cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromTransDstToSampler);
         }
 
-        if (renderingResource.undefinedLaout || mQueueFamilyPresent != mQueueFamilyGraphics) {
-            vk::ImageMemoryBarrier barrierFromPresentToDraw;
-            barrierFromPresentToDraw.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
-            barrierFromPresentToDraw.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
-            barrierFromPresentToDraw.oldLayout = renderingResource.undefinedLaout ? vk::ImageLayout::eUndefined : vk::ImageLayout::ePresentSrcKHR;
-            barrierFromPresentToDraw.newLayout = vk::ImageLayout::ePresentSrcKHR;
-            barrierFromPresentToDraw.srcQueueFamilyIndex = mQueueFamilyPresent;
-            barrierFromPresentToDraw.dstQueueFamilyIndex = mQueueFamilyGraphics;
-            barrierFromPresentToDraw.image = renderingResource.imageHandle;
-            barrierFromPresentToDraw.subresourceRange = range;
-            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPresentToDraw);
-            renderingResource.undefinedLaout = false;
-        }
+
+        vk::ImageMemoryBarrier barrierFromPresentToDraw;
+        barrierFromPresentToDraw.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+        barrierFromPresentToDraw.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+        barrierFromPresentToDraw.oldLayout = renderingResource.undefinedLaout ? vk::ImageLayout::eUndefined : vk::ImageLayout::ePresentSrcKHR;
+        barrierFromPresentToDraw.newLayout = vk::ImageLayout::ePresentSrcKHR;
+        barrierFromPresentToDraw.srcQueueFamilyIndex = mQueueFamilyPresent;
+        barrierFromPresentToDraw.dstQueueFamilyIndex = mQueueFamilyGraphics;
+        barrierFromPresentToDraw.image = renderingResource.imageHandle;
+        barrierFromPresentToDraw.subresourceRange = range;
+        cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPresentToDraw);
+        renderingResource.undefinedLaout = false;
+        
 
         vk::ClearColorValue targetColor = std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f };
         vk::ClearValue clearValue(targetColor);
@@ -1218,18 +1192,18 @@ public:
 
         cmdBuffer->endRenderPass();
 
-        if (mQueueFamilyPresent != mQueueFamilyGraphics) {
-            vk::ImageMemoryBarrier barrierFromDrawToPresent;
-            barrierFromDrawToPresent.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
-            barrierFromDrawToPresent.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
-            barrierFromDrawToPresent.oldLayout = vk::ImageLayout::ePresentSrcKHR;
-            barrierFromDrawToPresent.newLayout = vk::ImageLayout::ePresentSrcKHR;
-            barrierFromDrawToPresent.srcQueueFamilyIndex = mQueueFamilyGraphics;
-            barrierFromDrawToPresent.dstQueueFamilyIndex = mQueueFamilyPresent;
-            barrierFromDrawToPresent.image = renderingResource.imageHandle;
-            barrierFromDrawToPresent.subresourceRange = range;
-            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromDrawToPresent);
-        }
+
+        vk::ImageMemoryBarrier barrierFromDrawToPresent;
+        barrierFromDrawToPresent.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+        barrierFromDrawToPresent.dstAccessMask = vk::AccessFlagBits::eMemoryRead;
+        barrierFromDrawToPresent.oldLayout = vk::ImageLayout::ePresentSrcKHR;
+        barrierFromDrawToPresent.newLayout = vk::ImageLayout::ePresentSrcKHR;
+        barrierFromDrawToPresent.srcQueueFamilyIndex = mQueueFamilyGraphics;
+        barrierFromDrawToPresent.dstQueueFamilyIndex = mQueueFamilyPresent;
+        barrierFromDrawToPresent.image = renderingResource.imageHandle;
+        barrierFromDrawToPresent.subresourceRange = range;
+        cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromDrawToPresent);
+        
         cmdBuffer->end();
 
         // Submit
@@ -1238,11 +1212,11 @@ public:
         vk::SubmitInfo submitInfo;
         submitInfo.pWaitDstStageMask = &waitDstStageMask;
         submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = renderingResource.semaphoreAvailable.get();
+        submitInfo.pWaitSemaphores = mSemaphoreAvailable.get();
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = renderingResource.commandBuffer.get();
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = renderingResource.semaphoreFinished.get();
+        submitInfo.pSignalSemaphores = mSemaphoreFinished.get();
         if (vk::Result::eSuccess != mCommandQueue.submit(1, &submitInfo, renderingResource.fence)) {
             std::cout << "Failed to submit command! Stoppping." << std::endl;
             return false;
@@ -1250,7 +1224,7 @@ public:
 
         vk::PresentInfoKHR presentInfo;
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = renderingResource.semaphoreFinished.get();
+        presentInfo.pWaitSemaphores = mSemaphoreFinished.get();
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = mSwapChain.get();
         presentInfo.pImageIndices = &imageIdx.value;
@@ -1260,10 +1234,6 @@ public:
             return false;
         }
 
-        ++mRenderingResourceIter;
-        if (mRenderingResourceIter == mRenderingResources.end()) {
-            mRenderingResourceIter = mRenderingResources.begin();
-        }
         mFirstDraw = false;
 
         std::this_thread::sleep_for(std::chrono::milliseconds(90));

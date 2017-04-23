@@ -22,6 +22,7 @@
 #define NOMINMAX
 #pragma warning(push, 0)
 #include <vulkan/vulkan.hpp>
+#include "math/OgreMatrix4.h"
 #pragma warning(pop)
 
 #define Q_IMPL(X) #X
@@ -329,5 +330,33 @@ RgbaImage LoadBmpImage(const std::string & filename)
 #ifdef _MSC_VER
 # pragma warning(pop)
 #endif
+
+
+inline
+void MakePerspectiveProjectionMatrix(Ogre::Matrix4 & dst, const float aspectRatio, const float fieldOfView, const float nearClip, const float farClip)
+{
+    const float f = 1.0f / std::tan(fieldOfView * 0.5f * 0.01745329251994329576923690768489f);
+
+    dst[0][0] = f / aspectRatio;
+    dst[0][1] = 0.0f;
+    dst[0][2] = 0.0f;
+    dst[0][3] = 0.0f;
+
+    dst[1][0] = 0.0f;
+    dst[1][1] = f;
+    dst[1][2] = 0.0f;
+    dst[1][3] = 0.0f;
+
+    dst[2][0] = 0.0f;
+    dst[2][1] = 0.0f;
+    dst[2][2] = -1.0f / (farClip - nearClip);
+    dst[2][3] = -1.0f;
+
+    dst[3][0] = 0.0f;
+    dst[3][1] = 0.0f;
+    dst[3][2] = nearClip / (farClip - nearClip);
+    dst[3][3] = 0.0f;
+}
+
 
 #endif
