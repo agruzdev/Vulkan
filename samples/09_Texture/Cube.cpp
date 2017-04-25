@@ -365,11 +365,16 @@ public:
         queueCreateInfo.queueFamilyIndex = static_cast<uint32_t>(mQueueFamilyPresent);
         queueCreateInfo.queueCount = static_cast<uint32_t>(queuePriorities.size());
         queueCreateInfo.pQueuePriorities = &queuePriorities[0];
+
+        vk::PhysicalDeviceFeatures features;
+        features.setSamplerAnisotropy(VK_TRUE);
+
         vk::DeviceCreateInfo deviceCreateInfo;
         deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
         deviceCreateInfo.ppEnabledExtensionNames = &deviceExtensions[0];
         deviceCreateInfo.queueCreateInfoCount = 1;
         deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+        deviceCreateInfo.pEnabledFeatures = &features;
         mDevice = mPhysicalDevice.createDevice(deviceCreateInfo);
         mDevice->waitIdle();
         std::cout << "OK" << std::endl;

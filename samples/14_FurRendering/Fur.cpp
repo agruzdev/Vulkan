@@ -465,6 +465,7 @@ public:
         vk::PhysicalDeviceFeatures features;
         features.setGeometryShader(VK_TRUE);
         features.setFillModeNonSolid(VK_TRUE);
+        features.setSamplerAnisotropy(VK_TRUE);
 
         vk::DeviceCreateInfo deviceCreateInfo;
         deviceCreateInfo.setEnabledExtensionCount(static_cast<uint32_t>(deviceExtensions.size()));
