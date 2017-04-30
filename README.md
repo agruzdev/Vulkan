@@ -180,3 +180,12 @@ Example:
 ![15_MultiplyMatrix](./images/15.png)
 
 
+#### 16_Blur
+
+Example of applying big radius blur via few iterations of compute shader invocation.
+Uses a couple of optimizations: separable convolution and sampling between pixels.
+
+Example:
+
+![16_Blur](./images/16.png)
+

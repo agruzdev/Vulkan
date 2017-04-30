@@ -59,3 +59,5 @@ add_snippet(14_FurRendering     ${CMAKE_SOURCE_DIR}/samples/14_FurRendering     
 add_snippet(10_ComputePipeline  ${CMAKE_SOURCE_DIR}/samples/10_ComputePipeline  ON)
 add_snippet(11_HeatComputation  ${CMAKE_SOURCE_DIR}/samples/11_HeatComputation  ON)
 add_snippet(15_MultiplyMatrix   ${CMAKE_SOURCE_DIR}/samples/15_MultiplyMatrix   ON)
+add_snippet(16_Blur             ${CMAKE_SOURCE_DIR}/samples/16_Blur             ON)
+

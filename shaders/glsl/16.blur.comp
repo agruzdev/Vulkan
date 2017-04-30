@@ -1,0 +1,29 @@
+// Vulkan samples
+// The MIT License (MIT)
+// Copyright (c) 2016 Alexey Gruzdev
+
+#version 450
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0) uniform usampler2D inImage;  /*rgba8ui*/
+layout(set = 0, binding = 1, rgba8ui) uniform uimage2D outImage; /*rgba8ui*/
+
+
+void main() {
+    const vec2 TC = vec2(gl_GlobalInvocationID.xy) + vec2(0.5);
+
+    uvec3 sum  = uvec3(0);
+
+    sum += texture(inImage, TC - vec2(5.5, 0.0)).rgb;
+    sum += texture(inImage, TC - vec2(3.5, 0.0)).rgb;
+    sum += texture(inImage, TC - vec2(1.5, 0.0)).rgb;
+    uvec3 anchor = texture(inImage, TC).rgb;
+    sum += texture(inImage, TC + vec2(1.5, 0.0)).rgb;
+    sum += texture(inImage, TC + vec2(3.5, 0.0)).rgb;
+    sum += texture(inImage, TC + vec2(5.5, 0.0)).rgb;
+
+    uvec3 rgb = (sum * 2 + anchor) / 13;
+
+    imageStore(outImage, ivec2(gl_GlobalInvocationID.yx), uvec4(rgb, 0));
+}
