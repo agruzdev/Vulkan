@@ -110,6 +110,9 @@ namespace ApiWithoutSecrets {
         return false;
       }
 
+      ShowWindow( Parameters.Handle, SW_SHOWNORMAL );
+      UpdateWindow( Parameters.Handle );
+
       return true;
     }
 

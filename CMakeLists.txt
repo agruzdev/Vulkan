@@ -41,6 +41,11 @@ set(RESOURCES_DIR "${CMAKE_SOURCE_DIR}/res")
 set(COMMON_DIR ${CMAKE_SOURCE_DIR}/samples/Common)
 list(APPEND COMMON_INCLUDES ${COMMON_DIR})
 
+if(WIN32)
+    add_definitions("/DWIN32_LEAN_AND_MEAN")
+    add_definitions("/DNOMINMAX")
+endif()
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/samples/common)
 
 add_snippet(01_Context          ${CMAKE_SOURCE_DIR}/samples/01_Context          ON)

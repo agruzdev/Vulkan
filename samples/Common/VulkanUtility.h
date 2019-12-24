@@ -19,7 +19,9 @@
 #include <type_traits>
 #include <utility>
 
-#define NOMINMAX
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
 #pragma warning(push, 0)
 #include <vulkan/vulkan.hpp>
 #include "math/OgreMatrix4.h"
