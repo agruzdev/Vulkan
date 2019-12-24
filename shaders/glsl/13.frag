@@ -4,7 +4,7 @@
 
 #version 450
 
-in VertexData {
+layout(location = 4) in VertexData {
     vec4 position;
     vec4 normal;
 } inVertex;

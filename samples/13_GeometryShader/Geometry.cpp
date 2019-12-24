@@ -297,6 +297,12 @@ public:
             throw std::runtime_error("Physical device was not found");
         }
         mPhysicalDevice = devices.front();
+        for (const auto& pd: devices) {
+            if (pd.getProperties().deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+                mPhysicalDevice = pd;
+            }
+        }
+        std::cout << "Using device: " << mPhysicalDevice.getProperties().deviceName << std::endl;
         std::cout << "OK" << std::endl;
 
         /*
@@ -1023,7 +1029,7 @@ public:
             barrierDepthPreinitToOptimal.dstQueueFamilyIndex = mQueueFamilyPresent;
             barrierDepthPreinitToOptimal.image = mDepthImage;
             barrierDepthPreinitToOptimal.subresourceRange = depthRange;
-            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierDepthPreinitToOptimal);
+            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eEarlyFragmentTests, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierDepthPreinitToOptimal);
         }
 
 

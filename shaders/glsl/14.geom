@@ -6,6 +6,7 @@
 
 layout(triangles) in;
 layout(line_strip, max_vertices=256) out;
+//layout(line_strip, max_vertices=32) out;
 
 layout(set = 0, binding = 0) uniform uniformBuffer {
     mat4 modelView;
@@ -14,13 +15,13 @@ layout(set = 0, binding = 0) uniform uniformBuffer {
 
 layout(set = 0, binding = 1) uniform sampler2D texSampler;
 
-in VertexData {
+layout(location = 4) in VertexData {
     vec4 position;
     vec4 normal;
     vec2 texCoord;
 } inVertex[3];
 
-out VertexData {
+layout(location = 8) out VertexData {
     vec4 position;
     vec4 normal;
     vec2 texCoord;

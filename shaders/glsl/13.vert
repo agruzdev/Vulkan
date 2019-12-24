@@ -12,7 +12,7 @@ layout(set = 0, binding = 0) uniform uniformBuffer {
 layout(location = 0) in vec4 inPosition;
 layout(location = 1) in vec4 inNormal;
 
-out VertexData {
+layout(location = 2) out VertexData {
     vec4 position;
     vec4 normal;
 } outVertex;

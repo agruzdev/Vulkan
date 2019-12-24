@@ -428,7 +428,13 @@ public:
             throw std::runtime_error("Physical device was not found");
         }
         mPhysicalDevice = devices.front();
+        for (const auto& pd: devices) {
+            if (pd.getProperties().deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+                mPhysicalDevice = pd;
+            }
+        }
         std::cout << "OK" << std::endl;
+        std::cout << "Using device: " << mPhysicalDevice.getProperties().deviceName << std::endl;
 
         /*
         * Create surface for the created window
