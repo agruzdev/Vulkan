@@ -1375,7 +1375,7 @@ public:
             barrierDepthPreinitToOptimal.dstQueueFamilyIndex = mQueueFamilyPresent;
             barrierDepthPreinitToOptimal.image = mDepthImage;
             barrierDepthPreinitToOptimal.subresourceRange = depthRange;
-            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierDepthPreinitToOptimal);
+            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eEarlyFragmentTests, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierDepthPreinitToOptimal);
 
             vk::ImageMemoryBarrier barrierFromPreinitToTransSrc;
             barrierFromPreinitToTransSrc.srcAccessMask = vk::AccessFlagBits::eHostWrite;
@@ -1386,7 +1386,7 @@ public:
             barrierFromPreinitToTransSrc.dstQueueFamilyIndex = mQueueFamilyPresent;
             barrierFromPreinitToTransSrc.image = mStagingImage;
             barrierFromPreinitToTransSrc.subresourceRange = range;
-            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPreinitToTransSrc);
+            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPreinitToTransSrc);
 
             vk::ImageMemoryBarrier barrierFromPreinitToTransDst;
             barrierFromPreinitToTransDst.srcAccessMask = vk::AccessFlagBits::eHostWrite;
@@ -1397,7 +1397,7 @@ public:
             barrierFromPreinitToTransDst.dstQueueFamilyIndex = mQueueFamilyPresent;
             barrierFromPreinitToTransDst.image = mTextureImage;
             barrierFromPreinitToTransDst.subresourceRange = range;
-            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPreinitToTransDst);
+            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromPreinitToTransDst);
 
             vk::ImageSubresourceLayers subResource;
             subResource.setAspectMask(vk::ImageAspectFlagBits::eColor);
@@ -1423,7 +1423,7 @@ public:
             barrierFromTransDstToSampler.dstQueueFamilyIndex = mQueueFamilyPresent;
             barrierFromTransDstToSampler.image = mTextureImage;
             barrierFromTransDstToSampler.subresourceRange = range;
-            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromTransDstToSampler);
+            cmdBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eGeometryShader, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrierFromTransDstToSampler);
         }
 
 
