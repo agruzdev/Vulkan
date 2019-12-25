@@ -5,8 +5,7 @@
 #version 450
 
 layout(triangles) in;
-layout(line_strip, max_vertices=256) out;
-//layout(line_strip, max_vertices=32) out;
+layout(line_strip, max_vertices=60) out;
 
 layout(set = 0, binding = 0) uniform uniformBuffer {
     mat4 modelView;
@@ -33,8 +32,8 @@ layout(push_constant) uniform PushConstants {
     float chldCount;
 } pushconst;
 
-const int PATH_LENGTH  = 3;
-const int MAX_CHILDREN_NUM = 64;
+const int PATH_LENGTH = 2;
+const int MAX_CHILDREN_NUM = 30;
 
 float rand(vec2 co){
     return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
@@ -58,7 +57,7 @@ void main() {
 
     const vec4 randTex = texture(texSampler, texcoord).rgba;
 
-    const float s0 = rand(randTex.ww - pushconst.seed) * 0.02;
+    const float s0 = rand(randTex.ww - pushconst.seed) * 0.05;
     const float step = pushconst.steplen + s0;
 
     const vec3 parentTip = origin + (PATH_LENGTH * step) * direction;
@@ -95,7 +94,8 @@ void main() {
             outVertex.texCoord = childTexCoord;
             EmitVertex();
         }
+
+        EndPrimitive();
     }
 
-    EndPrimitive();
 }

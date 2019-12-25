@@ -1295,6 +1295,12 @@ public:
             PushConstants pass;
             pass.seed[0] = std::rand() / static_cast<float>(RAND_MAX);
             pass.seed[1] = std::rand() / static_cast<float>(RAND_MAX);
+            pass.length = 0.05f;
+            pass.count = 64;
+            mFurPasses.push_back(pass);
+
+            pass.seed[0] = std::rand() / static_cast<float>(RAND_MAX);
+            pass.seed[1] = std::rand() / static_cast<float>(RAND_MAX);
             pass.length = 0.06f;
             pass.count = 64;
             mFurPasses.push_back(pass);
@@ -1310,6 +1316,7 @@ public:
             pass.length = 0.09f;
             pass.count = 32;
             mFurPasses.push_back(pass);
+
         }
 
         CanRender = true;

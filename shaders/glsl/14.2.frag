@@ -23,8 +23,9 @@ void main() {
     const float diffuse = clamp(dot(lightDir, vec3(inVertex.normal)), 0.0, 1.0);
 
     const float alpha = inVertex.normal.a;
-    const vec3 textureRgb = texture(texSampler, inVertex.texCoord).rgb;
+    vec3 textureRgb = texture(texSampler, inVertex.texCoord).rgb;
+    textureRgb = mix(textureRgb, textureRgb * 0.5, pow(alpha, 4));
 
     const vec3 rgb = clamp((Ambient + diffuse * Color) * textureRgb, 0.0, 1.0);
-    fragColor = vec4(clamp(rgb, 0.0, 1.0), alpha * 0.8);
+    fragColor = vec4(clamp(rgb, 0.0, 1.0), alpha * 0.7);
 }
