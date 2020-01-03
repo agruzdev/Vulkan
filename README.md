@@ -189,3 +189,13 @@ Example:
 
 ![16_Blur](./images/16.png)
 
+
+#### 17_RayTracing
+
+Simplest example of using the Ray Tracing pipeline. Draws a diffuse shaded cube with x4 antialiasing.
+Requires NVidia RTX video card with the "VK_NV_ray_tracing" extension.
+
+Example:
+
+![17_RayTracing](./images/17.png)
+

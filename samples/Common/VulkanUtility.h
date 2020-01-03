@@ -187,10 +187,10 @@ const char* DeviceTypeToString(const vk::PhysicalDeviceType & type)
     }
 }
 
-inline 
-void CheckExtensions(std::vector<const char*> & names)
+template <typename Dispatch_ = VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>
+void CheckExtensions(std::vector<const char*> & names, const Dispatch_& d = VULKAN_HPP_DEFAULT_DISPATCHER)
 {
-    auto extensions = vk::enumerateInstanceExtensionProperties();
+    auto extensions = vk::enumerateInstanceExtensionProperties(nullptr, d);
     for (const auto & requestedExt : names) {
         if (extensions.cend() == std::find_if(extensions.cbegin(), extensions.cend(), [&requestedExt](const vk::ExtensionProperties & prop) {
             return (0 == std::strcmp(prop.extensionName, requestedExt));
@@ -200,10 +200,10 @@ void CheckExtensions(std::vector<const char*> & names)
     }
 }
 
-inline
-void CheckLayers(std::vector<const char*> & names)
+template <typename Dispatch_ = VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>
+void CheckLayers(std::vector<const char*> & names, const Dispatch_& d = VULKAN_HPP_DEFAULT_DISPATCHER)
 {
-    auto extensions = vk::enumerateInstanceLayerProperties();
+    auto extensions = vk::enumerateInstanceLayerProperties(d);
     for (const auto & requestedExt : names) {
         if (extensions.cend() == std::find_if(extensions.cbegin(), extensions.cend(), [&requestedExt](const vk::LayerProperties & prop) {
             return (0 == std::strcmp(prop.layerName, requestedExt));
@@ -213,15 +213,15 @@ void CheckLayers(std::vector<const char*> & names)
     }
 }
 
-inline
-void CheckDeviceExtensions(const vk::PhysicalDevice & physDevice, std::vector<const char*> & names)
+template <typename Dispatch_ = VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>
+void CheckDeviceExtensions(const vk::PhysicalDevice & physDevice, std::vector<const char*> & names, const Dispatch_& d = VULKAN_HPP_DEFAULT_DISPATCHER)
 {
-    auto extensions = physDevice.enumerateDeviceExtensionProperties();
+    auto extensions = physDevice.enumerateDeviceExtensionProperties(nullptr, d);
     for (const auto & requestedExt : names) {
         if (extensions.cend() == std::find_if(extensions.cbegin(), extensions.cend(), [&requestedExt](const vk::ExtensionProperties & prop) {
             return (0 == std::strcmp(prop.extensionName, requestedExt));
         })) {
-            throw std::runtime_error(std::string("Extendion is not supported ") + requestedExt);
+            throw std::runtime_error(std::string("Extention is not supported ") + requestedExt);
         }
     }
 }
