@@ -1,0 +1,106 @@
+#version 460
+#extension GL_NV_ray_tracing : require
+
+struct GeometryData
+{
+    vec4 position;
+    vec4 size;
+};
+
+layout(set = 0, binding = 2) buffer VertexBuffer {
+    restrict readonly GeometryData vertexes[];
+};
+
+hitAttributeNV vec3 hitOutColor;
+
+// https://www.iquilezles.org/www/articles/mandelbulb/mandelbulb.htm
+float Mandelbulb(GeometryData g, vec3 p0, out vec3 color)
+{
+    float scale = g.size.x;
+    vec3 p = (p0 - g.position.xyz) / scale;
+
+    vec3 w = p;
+    float m = dot(w, w);
+
+    vec4 trap = vec4(abs(w), m);
+    float dz = 1.0f;
+
+    for(int i = 0; i < 4; i++) {
+
+        float m2 = m * m;
+        float m4 = m2 * m2;
+        dz = 8.0f * sqrt(m4 * m2 * m) * dz + 1.0f;
+
+        float x  = w.x;
+        float x2 = x * x;
+        float x4 = x2 * x2;
+        float y  = w.y;
+        float y2 = y * y;
+        float y4 = y2 * y2;
+        float z  = w.z;
+        float z2 = z * z;
+        float z4 = z2 * z2;
+
+        float k3 = x2 + z2;
+        float k2 = inversesqrt(k3 * k3 * k3 * k3 * k3 * k3 * k3);
+        float k1 = x4 + y4 + z4 - 6.0f * y2 * z2 - 6.0f * x2 * y2 + 2.0f * z2 * x2;
+        float k4 = x2 - y2 + z2;
+
+        w.x = p.x +  64.0f * x * y * z * (x2 - z2) * k4 * (x4 - 6.0f * x2 * z2 + z4) * k1 * k2;
+        w.y = p.y + -16.0f * y2 *k3 * k4 * k4 + k1 * k1;
+        w.z = p.z +  -8.0f * y * k4 * (x4 * x4 - 28.0f * x4 * x2 * z2 + 70.0f * x4 * z4 - 28.0f * x2 * z2 * z4 + z4 * z4) * k1 * k2;
+
+        trap = min(trap, vec4(abs(w), m));
+
+        m = dot(w, w);
+        if (m > 256.0f) {
+            break;
+        }
+
+    }
+
+    float w0 = clamp(trap.x, 0.0f, 1.0f) + clamp(trap.y, 0.0f, 1.0f) + clamp(trap.z, 0.0f, 1.0f);
+    float w1 = clamp(pow(trap.w, 5.0f), 0.0f, 1.0f);
+
+    vec3 rgb = vec3(0.01);
+    rgb = mix(rgb, vec3(0.01f, 0.10f, 0.20f), w0);
+    rgb = mix(rgb, vec3(0.25f, 0.25f, 0.02f), w1);
+    rgb *= 5.0f;
+    color = rgb;
+
+    return 0.25f * scale * log(m) * sqrt(m) / dz;
+}
+
+const int MAX_ITER = 1000;
+const float EPS = 0.0001f;
+
+void main()
+{
+    GeometryData g = vertexes[gl_PrimitiveID];
+
+    vec3 rayOri = gl_WorldRayOriginNV;
+    vec3 rayDir = normalize(gl_WorldRayDirectionNV);
+
+    float tStart = gl_RayTminNV;
+    float t = tStart;
+
+    vec3 color = vec3(1.0f);
+
+    for (int i = 0; i < MAX_ITER; ++i) {
+
+        float dist = Mandelbulb(g, rayOri + t * rayDir, color);
+        if (dist < EPS) {
+            hitOutColor = color;
+            reportIntersectionNV(t, 0u);
+            return;
+        }
+
+        t += dist;
+
+        if (t >= gl_RayTmaxNV) {
+            break;
+        }
+
+    }
+
+}

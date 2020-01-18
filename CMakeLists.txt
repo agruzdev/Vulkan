@@ -61,6 +61,7 @@ add_snippet(12_Animation        ${CMAKE_SOURCE_DIR}/samples/12_Animation        
 add_snippet(13_GeometryShader   ${CMAKE_SOURCE_DIR}/samples/13_GeometryShader   ON)
 add_snippet(14_FurRendering     ${CMAKE_SOURCE_DIR}/samples/14_FurRendering     ON)
 add_snippet(17_RayTracing       ${CMAKE_SOURCE_DIR}/samples/17_RayTracing       ON)
+add_snippet(18_RT_RayMarching   ${CMAKE_SOURCE_DIR}/samples/18_RT_RayMarching   ON)
 
 add_snippet(10_ComputePipeline  ${CMAKE_SOURCE_DIR}/samples/10_ComputePipeline  ON)
 add_snippet(11_HeatComputation  ${CMAKE_SOURCE_DIR}/samples/11_HeatComputation  ON)

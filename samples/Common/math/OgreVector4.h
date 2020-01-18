@@ -101,10 +101,10 @@ namespace Ogre
         {
             return Vector3(x, y, z);
         }
-        //inline Vector2 xy() const
-        //{
-        //    return Vector2(x, y);
-        //}
+        inline Vector2 xy() const
+        {
+            return Vector2(x, y);
+        }
 
         /** Exchange the contents of this vector with another. 
         */
