@@ -71,6 +71,28 @@ float Mandelbulb(GeometryData g, vec3 p0, out vec3 color)
     return 0.25f * scale * log(m) * sqrt(m) / dz;
 }
 
+bool IntersectShpere(vec3 S, float R, vec3 ori, vec3 dir, out float tMin, out float tMax)
+{
+    vec3 c = ori - S;
+    float A = 1.0f;
+    float B = dot(c, dir);
+    float C = dot(c, c) - R * R;
+    float D = B * B - C;
+
+    if (D >= 0) {
+        float sqrtD = sqrt(D);
+        float t1 = -B + sqrtD;
+        float t2 = -B - sqrtD;
+
+        tMin = min(t1, t2);
+        tMax = max(t1, t2);
+
+        return true;
+    }
+
+    return false;
+}
+
 const int MAX_ITER = 1000;
 const float EPS = 0.0001f;
 
@@ -81,7 +103,23 @@ void main()
     vec3 rayOri = gl_WorldRayOriginNV;
     vec3 rayDir = normalize(gl_WorldRayDirectionNV);
 
-    float tStart = gl_RayTminNV;
+    vec3 bSpherePos = g.position.xyz;
+    float bSphereRad = 1.25f * g.size.x;
+
+    float bSphereTMin = gl_RayTminNV;
+    float bSphereTMax = gl_RayTmaxNV;
+
+#if 1
+    if (!IntersectShpere(bSpherePos, bSphereRad, rayOri, rayDir, bSphereTMin, bSphereTMax)) {
+        // Bounding shere miss
+        return;
+    }
+
+    bSphereTMin = max(gl_RayTminNV, bSphereTMin);
+    bSphereTMax = min(gl_RayTmaxNV, bSphereTMax);
+#endif
+
+    float tStart = bSphereTMin;
     float t = tStart;
 
     vec3 color = vec3(1.0f);
@@ -97,7 +135,7 @@ void main()
 
         t += dist;
 
-        if (t >= gl_RayTmaxNV) {
+        if (t >= bSphereTMax) {
             break;
         }
 

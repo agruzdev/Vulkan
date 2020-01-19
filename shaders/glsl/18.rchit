@@ -20,7 +20,7 @@ layout(location = 1) rayPayloadNV bool isShadowed;
 hitAttributeNV vec3 hitColor;
 
 
-const vec3 Light0  = vec3(50.0, -100.0, 50.0); // modelview
+const vec3 Light0  = vec3(500.0, -1000.0, 500.0); // modelview
 const vec3 Ambient = vec3(0.3);
 const vec3 Color   = vec3(0.7);
 
